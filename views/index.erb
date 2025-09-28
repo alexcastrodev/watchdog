@@ -1,0 +1,223 @@
+<!-- Header -->
+<div class="header-section">
+    <h1><i class="bi bi-shield-check"></i> Watchdog</h1>
+    <p class="mb-0">Job Monitoring Dashboard</p>
+</div>
+
+<!-- Main Content -->
+<div class="p-4">
+    <% 
+    total_jobs = @stacks.sum { |stack_hash| stack_hash.values.first.length }
+    total_stacks = @stacks.length
+    jobs_with_logs = @stacks.sum { |stack_hash| stack_hash.values.first.count { |job| job[:log] } }
+    %>
+
+    <!-- Navigation Tabs -->
+    <ul class="nav nav-tabs mb-4" id="mainTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active" id="logs-tab" data-bs-toggle="tab" data-bs-target="#logs" type="button" role="tab">
+                <i class="bi bi-file-text"></i> Logs
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="jobs-tab" data-bs-toggle="tab" data-bs-target="#jobs" type="button" role="tab">
+                <i class="bi bi-file-code"></i> YAML Files
+            </button>
+        </li>
+    </ul>
+
+    <!-- Tab Content -->
+    <div class="tab-content" id="mainTabContent">
+        <!-- Logs Tab -->
+        <div class="tab-pane fade show active" id="logs" role="tabpanel">
+            <!-- Statistics Cards -->
+            <div class="row g-3 mb-4">
+                <div class="col-md-3 col-sm-6">
+                    <div class="card stats-card text-center h-100">
+                        <div class="card-body">
+                            <div class="stat-number"><%= total_stacks %></div>
+                            <small class="text-muted">Active Stacks</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3 col-sm-6">
+                    <div class="card stats-card text-center h-100">
+                        <div class="card-body">
+                            <div class="stat-number"><%= total_jobs %></div>
+                            <small class="text-muted">Total Jobs</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3 col-sm-6">
+                    <div class="card stats-card text-center h-100">
+                        <div class="card-body">
+                            <div class="stat-number"><%= jobs_with_logs %></div>
+                            <small class="text-muted">Jobs with Logs</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3 col-sm-6">
+                    <div class="card stats-card text-center h-100">
+                        <div class="card-body">
+                            <div class="stat-number"><%= ((jobs_with_logs.to_f / [total_jobs, 1].max) * 100).round(1) %>%</div>
+                            <small class="text-muted">Coverage</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Stacks and Jobs -->
+            <% if @stacks.empty? %>
+                <div class="empty-state">
+                    <div class="text-center">
+                        <i class="bi bi-inbox display-1 text-muted"></i>
+                        <h3 class="mt-3">No Jobs Found</h3>
+                        <p class="text-muted">Your watchdog is ready and waiting for jobs to monitor.</p>
+                        <small class="text-muted">
+                            Jobs will appear here once you start adding YAML configuration files to the logs directory.
+                        </small>
+                    </div>
+                </div>
+            <% else %>
+                <div class="row g-4">
+                    <% @stacks.each do |stack_hash| %>
+                        <% stack_name = stack_hash.keys.first %>
+                        <% jobs = stack_hash.values.first %>
+                        
+                        <div class="col-12">
+                            <div class="card">
+                                <!-- Stack Header -->
+                                <div class="card-header stack-header d-flex justify-content-between align-items-center">
+                                    <h5 class="mb-0">
+                                        <i class="bi bi-archive"></i> <%= stack_name.upcase %>
+                                    </h5>
+                                    <span class="badge bg-light text-dark">
+                                        <%= jobs.length %> job<%= jobs.length != 1 ? 's' : '' %>
+                                    </span>
+                                </div>
+                                
+                                <!-- Jobs Grid -->
+                                <div class="card-body">
+                                    <div class="row g-3">
+                                        <% jobs.each do |job| %>
+                                            <div class="col-lg-6 col-xl-4">
+                                                <div class="card job-card h-100">
+                                                    <div class="card-body">
+                                                        <!-- Job Header -->
+                                                        <div class="d-flex justify-content-between align-items-start mb-3">
+                                                            <h6 class="card-title mb-0"><%= job[:name] %></h6>
+                                                            <span class="badge <%= job[:log] ? 'status-active' : 'status-inactive' %>">
+                                                                <i class="bi bi-<%= job[:log] ? 'check-circle' : 'clock' %>"></i>
+                                                                <%= job[:log] ? 'Active' : 'Pending' %>
+                                                            </span>
+                                                        </div>
+                                                        
+                                                        <!-- Properties -->
+                                                        <% if job[:properties] && !job[:properties].empty? %>
+                                                            <div class="mb-3">
+                                                                <% job[:properties].each do |key, value| %>
+                                                                    <div class="d-flex justify-content-between py-1 border-bottom">
+                                                                        <span class="property-key"><%= key %>:</span>
+                                                                        <span class="property-value"><%= value %></span>
+                                                                    </div>
+                                                                <% end %>
+                                                            </div>
+                                                        <% end %>
+                                                        
+                                                        <!-- Log Link -->
+                                                        <% if job[:log] %>
+                                                            <a href="<%= job[:log] %>" class="btn btn-outline-primary btn-sm">
+                                                                <i class="bi bi-file-earmark-text"></i> View Log
+                                                            </a>
+                                                        <% end %>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        <% end %>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    <% end %>
+                </div>
+            <% end %>
+        </div>
+
+        <!-- YAML Files Tab -->
+        <div class="tab-pane fade" id="jobs" role="tabpanel">
+            <% if @yaml_files.empty? %>
+                <div class="empty-state">
+                    <div class="text-center">
+                        <i class="bi bi-file-code display-1 text-muted"></i>
+                        <h3 class="mt-3">No YAML Files Found</h3>
+                        <p class="text-muted">No configuration files found in the logs directory.</p>
+                        <small class="text-muted">
+                            Add YAML configuration files to start monitoring jobs.
+                        </small>
+                    </div>
+                </div>
+            <% else %>
+                <div class="row g-4">
+                    <% @yaml_files.each do |yaml_file| %>
+                        <div class="col-lg-6 col-xl-4">
+                            <div class="card job-card h-100">
+                                <div class="card-body">
+                                    <!-- File Header -->
+                                    <div class="d-flex justify-content-between align-items-start mb-3">
+                                        <h6 class="card-title mb-0">
+                                            <i class="bi bi-file-earmark-code text-primary"></i>
+                                            <%= yaml_file[:name] %>.yml
+                                        </h6>
+                                        <span class="badge bg-primary">
+                                            <%= (yaml_file[:size] / 1024.0).round(1) %> KB
+                                        </span>
+                                    </div>
+                                    
+                                    <!-- File Info -->
+                                    <div class="mb-3">
+                                        <small class="text-muted">
+                                            <i class="bi bi-clock"></i>
+                                            Last modified: <%= yaml_file[:last_modified].strftime('%Y-%m-%d %H:%M') %>
+                                        </small>
+                                    </div>
+                                    
+                                    <!-- Content Preview -->
+                                    <% if yaml_file[:content] && !yaml_file[:content].empty? %>
+                                        <div class="mb-3">
+                                            <small class="text-muted d-block mb-2">
+                                                <i class="bi bi-eye"></i> Preview:
+                                            </small>
+                                            <div class="bg-light p-2 rounded" style="font-size: 0.8rem; max-height: 100px; overflow-y: auto;">
+                                                <% yaml_file[:content].first(3).each do |key, value| %>
+                                                    <div class="d-flex justify-content-between">
+                                                        <span class="property-key"><%= key %>:</span>
+                                                        <span class="property-value text-truncate ms-2" style="max-width: 120px;">
+                                                            <%= value.is_a?(Hash) || value.is_a?(Array) ? "#{value.class.name.downcase}" : value %>
+                                                        </span>
+                                                    </div>
+                                                <% end %>
+                                                <% if yaml_file[:content].size > 3 %>
+                                                    <small class="text-muted">... and <%= yaml_file[:content].size - 3 %> more</small>
+                                                <% end %>
+                                            </div>
+                                        </div>
+                                    <% end %>
+                                    
+                                    <!-- Actions -->
+                                    <div class="d-flex gap-2">
+                                        <button class="btn btn-outline-primary btn-sm flex-fill" onclick="viewYamlFile('<%= yaml_file[:name] %>')">
+                                            <i class="bi bi-eye"></i> View Details
+                                        </button>
+                                        <a href="<%= yaml_file[:file_path] %>" class="btn btn-outline-secondary btn-sm" download>
+                                            <i class="bi bi-download"></i>
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    <% end %>
+                </div>
+            <% end %>
+        </div>
+    </div>
+</div>
