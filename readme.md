@@ -21,3 +21,13 @@ Then, you can kill it by name:
 ```sh
 pkill dc-watchdog
 ```
+
+# Screenshots
+
+![Dashboard](./.github/jobs.png)
+
+![Dashboard](./.github/jobs2.png)
+
+![Dashboard](./.github/details.png)
+
+![Dashboard](./.github/logs.png)
