@@ -138,4 +138,29 @@ module DataHelpers
       halt 500, { error: "Error reading log file: #{e.message}" }.to_json
     end
   end
+
+  # Get job file content for API
+  def get_job_file_content(filename)
+    jobs_dir = File.join(settings.root, 'jobs')
+    job_file = File.join(jobs_dir, "#{filename}.yml")
+
+    halt 404, { error: 'Job file not found' }.to_json unless File.exist?(job_file)
+
+    begin
+      content = File.read(job_file)
+      parsed_content = YAML.load_file(job_file)
+
+      {
+        name: filename,
+        content: content,
+        parsed_content: parsed_content,
+        last_modified: File.mtime(job_file).strftime('%Y-%m-%d %H:%M:%S'),
+        size: File.size(job_file),
+        lines_count: content.lines.length,
+        file_path: job_file
+      }.to_json
+    rescue => e
+      halt 500, { error: "Error reading job file: #{e.message}" }.to_json
+    end
+  end
 end

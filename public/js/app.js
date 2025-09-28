@@ -28,6 +28,12 @@ async function viewYamlFile(source, filename) {
   const content = document.getElementById('yamlContent');
   const modalTitle = document.getElementById('yamlModalLabel');
   const downloadBtn = document.getElementById('downloadYamlBtn');
+  const tailBtn = document.getElementById('tailYamlBtn');
+  const stopTailBtn = document.getElementById('stopTailYamlBtn');
+  
+  // Store current filename and source for tail functionality
+  currentTailYamlFilename = filename;
+  currentTailYamlSource = source;
   
   // Show loading state
   content.innerHTML = `
@@ -54,13 +60,17 @@ async function viewYamlFile(source, filename) {
       content.innerHTML = `
           <div class="mb-4">
               <div class="row g-3 mb-3">
-                  <div class="col-md-6">
+                  <div class="col-md-4">
                       <small class="text-muted">File Size:</small>
-                      <div class="fw-bold">${data.size} bytes</div>
+                      <div class="fw-bold" id="yamlFileSize">${data.size} bytes</div>
                   </div>
-                  <div class="col-md-6">
+                  <div class="col-md-4">
                       <small class="text-muted">Last Modified:</small>
-                      <div class="fw-bold">${data.last_modified}</div>
+                      <div class="fw-bold" id="yamlLastModified">${data.last_modified}</div>
+                  </div>
+                  <div class="col-md-4">
+                      <small class="text-muted">Status:</small>
+                      <div class="fw-bold text-light" id="yamlStatus">Static View</div>
                   </div>
               </div>
           </div>
@@ -68,8 +78,11 @@ async function viewYamlFile(source, filename) {
           <div class="mb-4">
               <h6 class="border-bottom pb-2 mb-3">
                   <i class="bi bi-list-ul"></i> Parsed Content
+                  <span id="tailYamlStatus" class="badge bg-secondary ms-2" style="display: none;">
+                      <i class="bi bi-circle-fill text-success blink"></i> Live Tail
+                  </span>
               </h6>
-              <div class="bg-secondary bg-opacity-25 p-3 rounded">
+              <div class="bg-secondary bg-opacity-25 p-3 rounded" id="yamlParsedContent">
                   ${formatYamlContent(data.content)}
               </div>
           </div>
@@ -78,9 +91,25 @@ async function viewYamlFile(source, filename) {
               <h6 class="border-bottom pb-2 mb-3">
                   <i class="bi bi-code"></i> Raw YAML
               </h6>
-              <pre class="bg-dark text-light p-3 rounded" style="max-height: 300px; overflow-y: auto; font-size: 0.9rem;"><code>${escapeHtml(data.raw_content)}</code></pre>
+              <pre class="bg-dark text-light p-3 rounded" id="yamlContentPre" style="max-height: 300px; overflow-y: auto; font-size: 0.9rem;"><code id="yamlContentCode">${escapeHtml(data.raw_content)}</code></pre>
           </div>
       `;
+      
+      // Store reference to yaml element for tail
+      tailYamlElement = document.getElementById('yamlContentCode');
+      
+      // Show tail button only for jobs (not logs)
+      if (source === 'jobs') {
+          tailBtn.style.display = 'inline-block';
+          stopTailBtn.style.display = 'none';
+          
+          // Set up tail button
+          tailBtn.onclick = () => startTailYaml();
+          stopTailBtn.onclick = () => stopTailYaml();
+      } else {
+          tailBtn.style.display = 'none';
+          stopTailBtn.style.display = 'none';
+      }
       
       // Set up download button
       downloadBtn.onclick = () => {
@@ -103,10 +132,27 @@ async function viewYamlFile(source, filename) {
   }
 }
 
+// YAML file viewer with tail started automatically
+async function viewYamlFileWithTail(source, filename) {
+  await viewYamlFile(source, filename);
+  // Start tail after a short delay to ensure modal is fully loaded
+  if (source === 'jobs') {
+    setTimeout(() => {
+      startTailYaml();
+    }, 500);
+  }
+}
+
 // Global variables for tail functionality
 let tailEventSource = null;
 let currentTailFilename = null;
 let tailLogElement = null;
+
+// Global variables for YAML tail functionality
+let tailYamlEventSource = null;
+let currentTailYamlFilename = null;
+let currentTailYamlSource = null;
+let tailYamlElement = null;
 
 // Log file viewer function
 async function viewLogFile(filename) {
@@ -333,11 +379,169 @@ function updateLogStats(size, newContent) {
   }
 }
 
-// Clean up when modal is closed
+// Start tail -f functionality for YAML files
+function startTailYaml() {
+  if (!currentTailYamlFilename || !currentTailYamlSource || tailYamlEventSource) return;
+  
+  const tailBtn = document.getElementById('tailYamlBtn');
+  const stopTailBtn = document.getElementById('stopTailYamlBtn');
+  const tailStatus = document.getElementById('tailYamlStatus');
+  const yamlContentPre = document.getElementById('yamlContentPre');
+  
+  // Update UI
+  tailBtn.style.display = 'none';
+  stopTailBtn.style.display = 'inline-block';
+  tailStatus.style.display = 'inline-block';
+  yamlContentPre.classList.add('tailing');
+  
+  // Create EventSource for Server-Sent Events (only jobs support tail for now)
+  if (currentTailYamlSource === 'jobs') {
+    tailYamlEventSource = new EventSource(`/api/job/${currentTailYamlFilename}/tail`);
+  } else {
+    showTailYamlError('Tail functionality is only available for job files');
+    stopTailYaml();
+    return;
+  }
+  
+  tailYamlEventSource.onmessage = function(event) {
+    try {
+      const data = JSON.parse(event.data);
+      
+      if (data.error) {
+        console.error('YAML tail error:', data.error);
+        showTailYamlError(data.error);
+        stopTailYaml();
+        return;
+      }
+      
+      if (data.type === 'initial') {
+        // Replace content with initial content
+        tailYamlElement.textContent = data.content;
+        updateYamlStats(data.size, data.last_modified);
+        updateYamlParsedContent(data.content);
+      } else if (data.type === 'update') {
+        // Replace content with updated content
+        tailYamlElement.textContent = data.content;
+        updateYamlStats(data.size, data.last_modified);
+        updateYamlParsedContent(data.content);
+        
+        // Flash effect for changes
+        flashYamlContent();
+      }
+      
+    } catch (e) {
+      console.error('Error parsing YAML tail data:', e);
+      showTailYamlError('Error parsing server response');
+    }
+  };
+  
+  tailYamlEventSource.onerror = function(event) {
+    console.error('YAML EventSource error:', event);
+    showTailYamlError('Connection to server lost');
+    stopTailYaml();
+  };
+}
+
+// Stop tail -f functionality for YAML files
+function stopTailYaml() {
+  if (tailYamlEventSource) {
+    tailYamlEventSource.close();
+    tailYamlEventSource = null;
+  }
+  
+  const tailBtn = document.getElementById('tailYamlBtn');
+  const stopTailBtn = document.getElementById('stopTailYamlBtn');
+  const tailStatus = document.getElementById('tailYamlStatus');
+  const yamlContentPre = document.getElementById('yamlContentPre');
+  
+  // Update UI
+  tailBtn.style.display = 'inline-block';
+  stopTailBtn.style.display = 'none';
+  tailStatus.style.display = 'none';
+  
+  if (yamlContentPre) {
+    yamlContentPre.classList.remove('tailing');
+  }
+  
+  // Reset status to static
+  const statusElement = document.getElementById('yamlStatus');
+  if (statusElement) {
+    statusElement.innerHTML = 'Static View';
+    statusElement.className = 'fw-bold text-light';
+  }
+}
+
+// Update YAML statistics during tail
+function updateYamlStats(size, lastModified) {
+  const fileSizeElement = document.getElementById('yamlFileSize');
+  const lastModifiedElement = document.getElementById('yamlLastModified');
+  const statusElement = document.getElementById('yamlStatus');
+  
+  if (fileSizeElement) {
+    fileSizeElement.textContent = `${size} bytes`;
+  }
+  
+  if (lastModifiedElement) {
+    lastModifiedElement.textContent = lastModified;
+  }
+  
+  if (statusElement) {
+    statusElement.innerHTML = '<i class="bi bi-circle-fill text-success blink"></i> Live Updating';
+    statusElement.className = 'fw-bold text-success';
+  }
+}
+
+// Update parsed content during YAML tail
+function updateYamlParsedContent(yamlContent) {
+  try {
+    const parsedContentDiv = document.getElementById('yamlParsedContent');
+    if (parsedContentDiv) {
+      parsedContentDiv.innerHTML = `
+        <div class="text-info">
+          <i class="bi bi-info-circle me-2"></i>
+          Content updated at ${new Date().toLocaleTimeString()}
+          <br>
+          <small class="text-muted">Parsed content will be refreshed on next view</small>
+        </div>
+      `;
+    }
+  } catch (e) {
+    console.error('Error updating parsed content:', e);
+  }
+}
+
+// Show error message in YAML tail status
+function showTailYamlError(message) {
+  const tailStatus = document.getElementById('tailYamlStatus');
+  if (tailStatus) {
+    tailStatus.innerHTML = `<i class="bi bi-exclamation-triangle text-warning"></i> ${message}`;
+    tailStatus.className = 'badge bg-warning ms-2';
+  }
+}
+
+// Flash effect for YAML content changes
+function flashYamlContent() {
+  const yamlContentPre = document.getElementById('yamlContentPre');
+  if (yamlContentPre) {
+    yamlContentPre.style.borderLeftColor = '#28a745';
+    setTimeout(() => {
+      yamlContentPre.style.borderLeftColor = '';
+    }, 200);
+  }
+}
+
+// Clean up when modals are closed
 document.getElementById('logModal').addEventListener('hidden.bs.modal', function() {
   stopTailLog();
   currentTailFilename = null;
   tailLogElement = null;
+});
+
+document.getElementById('yamlModal').addEventListener('hidden.bs.modal', function() {
+  stopTailYaml();
+  currentTailYamlFilename = null;
+  currentTailYamlSource = null;
+  tailYamlElement = null;
 });
 
 // Helper functions

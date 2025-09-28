@@ -30,13 +30,19 @@ get '/api/yaml/:source/:filename' do
     get_yaml_file_details(params[:source], params[:filename])
 end
 
+# API endpoint to get job file content
+get '/api/job/:filename' do
+    content_type :json
+    get_job_file_content(params[:filename])
+end
+
 # API endpoint to get log file content
 get '/api/log/:filename' do
     content_type :json
     get_log_file_content(params[:filename])
 end
 
-# Server-Sent Events endpoint for tail -f functionality
+# Server-Sent Events endpoint for tail -f functionality for job logs
 get '/api/log/:filename/tail' do
     content_type 'text/event-stream'
     cache_control :no_cache
@@ -96,6 +102,70 @@ get '/api/log/:filename/tail' do
         end
       rescue => e
         error_data = { error: "Error reading log file: #{e.message}" }
+        out << "data: #{error_data.to_json}\n\n"
+      end
+    end
+end
+
+# Server-Sent Events endpoint for tail -f functionality for job files
+get '/api/job/:filename/tail' do
+    content_type 'text/event-stream'
+    cache_control :no_cache
+    headers 'Connection' => 'keep-alive',
+            'Access-Control-Allow-Origin' => '*'
+    
+    filename = params[:filename]
+    jobs_dir = File.join(settings.root, 'jobs')
+    job_file = File.join(jobs_dir, "#{filename}.yml")
+    
+    halt 404, "data: {\"error\": \"Job file not found\"}\n\n" unless File.exist?(job_file)
+    
+    stream :keep_open do |out|
+      begin
+        # Get initial file size and modification time
+        initial_size = File.size(job_file)
+        last_modified = File.mtime(job_file)
+        
+        # Send initial content
+        content = File.read(job_file)
+        data = {
+          type: 'initial',
+          content: content,
+          size: initial_size,
+          last_modified: last_modified.strftime('%Y-%m-%d %H:%M:%S')
+        }
+        out << "data: #{data.to_json}\n\n"
+        
+        # Keep checking for changes
+        loop do
+          sleep 1 # Check every second for file changes
+          
+          unless File.exist?(job_file)
+            error_data = { error: "Job file no longer exists" }
+            out << "data: #{error_data.to_json}\n\n"
+            break
+          end
+          
+          current_modified = File.mtime(job_file)
+          current_size = File.size(job_file)
+          
+          if current_modified > last_modified || current_size != initial_size
+            # File has been modified
+            new_content = File.read(job_file)
+            last_modified = current_modified
+            initial_size = current_size
+            
+            update_data = {
+              type: 'update',
+              content: new_content,
+              size: current_size,
+              last_modified: current_modified.strftime('%Y-%m-%d %H:%M:%S')
+            }
+            out << "data: #{update_data.to_json}\n\n"
+          end
+        end
+      rescue => e
+        error_data = { error: "Error reading job file: #{e.message}" }
         out << "data: #{error_data.to_json}\n\n"
       end
     end
