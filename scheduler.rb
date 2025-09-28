@@ -22,13 +22,14 @@ module Orchestrator
     def process
       dir = "#{ENV['PROJECTS_PATH']}/#{@job.name}"
       @job.path = "#{File.expand_path(File.dirname(__FILE__))}/logs/#{@job.name}-#{Time.now.strftime("%Y%m%d%H%M%S")}"
+      @job.log = "#{@job.path}.log"
+      @job.save
 
       if Dir.exist?(dir)
         cmd = "cd #{dir} && git pull && ./build.sh >> #{@job.path}.log"
   
         @pid = spawn_with_callback(cmd, lambda do |pid, success, output|
           @job.status = success ? Job::STATUS[:done] : Job::STATUS[:error]
-          @job.log = "#{@job.path}.log"
           @job.pid = nil
           @job.save
   
@@ -40,7 +41,6 @@ module Orchestrator
         @job.save
       else
         @job.status = Job::STATUS[:error]
-        @job.log = "#{@job.path}.log"
         @job.save
         File.write(@job.path + ".log", "Directory #{dir} does not exist.\n")
         FileUtils.mv(@file, "#{@job.path}.yml")
