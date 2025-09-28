@@ -1,5 +1,4 @@
 require 'sinatra'
-require_relative 'routes/get_routes'
 
 set :views, File.dirname(__FILE__) + '/views'
 set :public_folder, File.dirname(__FILE__) + '/public'
@@ -11,8 +10,29 @@ helpers do
   end
 end
 
-# Register GET routes from separate module
-GetRoutes.register(self)
+require_relative 'helpers/data_helpers'
+include DataHelpers
+
+# body:
+## stack: remapi, feed
+get '/' do
+    @stacks = build_stacks_data
+    @job_files = fetch_job_files
+    @logs_yaml_files = fetch_logs_yaml_files
+    erb :index
+end
+
+# API endpoint to get YAML file details
+get '/api/yaml/:source/:filename' do
+    content_type :json
+    get_yaml_file_details(params[:source], params[:filename])
+end
+
+# API endpoint to get log file content
+get '/api/log/:filename' do
+    content_type :json
+    get_log_file_content(params[:filename])
+end
 
 post '/webhook/build' do
     halt 422, {'Content-Type' => 'application/json'}, { error: 'missing stack' }.to_json if !params['stack']
