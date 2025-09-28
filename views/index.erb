@@ -174,7 +174,7 @@
                                                         </h6>
                                                         <span class="badge <%= job[:log] ? 'bg-success' : 'bg-warning text-dark' %>">
                                                             <i class="bi bi-<%= job[:log] ? 'check-circle' : 'clock' %> me-1"></i>
-                                                            <%= job[:log] ? 'Active' : 'Pending' %>
+                                                            <%= job[:status] %>
                                                         </span>
                                                     </div>
                                                     <div class="col-md-6">
