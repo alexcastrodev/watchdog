@@ -20,16 +20,23 @@ get '/' do
         stack = name.split('-').first
         log_file = File.join(logs_dir, "#{name}.log")
         properties = File.exist?(yml_file) ? YAML.load_file(yml_file) : {}
+        
+        # Extract timestamp from filename for sorting (format: stack-YYYYMMDDHHMMSS)
+        timestamp_match = name.match(/-(\d{14})$/)
+        timestamp = timestamp_match ? timestamp_match[1] : '0'
+        
         {
             name: name,
             properties: properties,
             log: File.exist?(log_file) ? log_file : nil,
-            yml_file: yml_file
+            yml_file: yml_file,
+            timestamp: timestamp
         }
-    end
+    end.sort_by { |entry| entry[:timestamp] }.reverse # Most recent first
 
     stacks = entries.group_by { |e| e[:name].split('-').first }
-                                 .map { |stack, items| { stack => items } }
+                   .transform_values { |items| items.sort_by { |item| item[:timestamp] }.reverse }
+                   .map { |stack, items| { stack => items } }
 
     # Get YAML files from jobs directory for Jobs tab
     jobs_dir = File.join(__dir__, 'jobs')
@@ -51,14 +58,20 @@ get '/' do
     logs_yaml_files = Dir.glob(File.join(logs_dir, '*.yml')).map do |yml_file|
         name = File.basename(yml_file, '.yml')
         content = File.exist?(yml_file) ? YAML.load_file(yml_file) : {}
+        
+        # Extract timestamp from filename for sorting (format: stack-YYYYMMDDHHMMSS)
+        timestamp_match = name.match(/-(\d{14})$/)
+        timestamp = timestamp_match ? timestamp_match[1] : '0'
+        
         {
             name: name,
             file_path: yml_file,
             content: content,
             last_modified: File.mtime(yml_file),
-            size: File.size(yml_file)
+            size: File.size(yml_file),
+            timestamp: timestamp
         }
-    end.sort_by { |f| f[:last_modified] }.reverse
+    end.sort_by { |f| f[:timestamp] }.reverse # Most recent first
 
     @stacks = stacks
     @job_files = job_files
