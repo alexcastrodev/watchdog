@@ -3,7 +3,25 @@ require 'sinatra'
 # body:
 ## stack: remapi, feed
 get '/' do
-    send_file File.join('index.html')
+    require 'yaml'
+    logs_dir = File.join(__dir__, 'logs')
+    entries = Dir.glob(File.join(logs_dir, '*.yml')).map do |yml_file|
+      name = File.basename(yml_file, '.yml')
+      stack = name.split('-').first
+      log_file = File.join(logs_dir, "#{name}.log")
+      properties = File.exist?(yml_file) ? YAML.load_file(yml_file) : {}
+      {
+        name: name,
+        properties: properties,
+        log: File.exist?(log_file) ? log_file : nil
+      }
+    end
+
+    stacks = entries.group_by { |e| e[:name].split('-').first }
+                   .map { |stack, items| { stack => items } }
+
+    @stacks = stacks
+    erb :index
 end
 
 post '/webhook/build' do
@@ -22,3 +40,4 @@ post '/webhook/build' do
 end
 
 require_relative 'scheduler'
+

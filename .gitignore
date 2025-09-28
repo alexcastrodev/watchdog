@@ -1,4 +1,6 @@
 jobs/*
 !jobs/.keep
+logs/*
+!logs/.keep
 tmp
 .DS_Store
