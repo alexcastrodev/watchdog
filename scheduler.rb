@@ -24,7 +24,7 @@ module Orchestrator
       @job.path = "#{File.expand_path(File.dirname(__FILE__))}/logs/#{@job.name}-#{Time.now.strftime("%Y%m%d%H%M%S")}"
 
       if Dir.exist?(dir)
-        cmd = "cd #{dir} && ./build.sh >> #{@job.path}.log"
+        cmd = "cd #{dir} && git pull && ./build.sh >> #{@job.path}.log"
   
         @pid = spawn_with_callback(cmd, lambda do |pid, success, output|
           @job.status = success ? Job::STATUS[:done] : Job::STATUS[:error]
