@@ -1,4 +1,5 @@
 require 'sinatra'
+require 'json'
 
 set :views, File.dirname(__FILE__) + '/views'
 set :public_folder, File.dirname(__FILE__) + '/public'
@@ -34,13 +35,16 @@ get '/api/log/:filename' do
     get_log_file_content(params[:filename])
 end
 
-post '/webhook/build' do
-    halt 422, {'Content-Type' => 'application/json'}, { error: 'missing stack' }.to_json if !params['stack']
+post '/api/webhook/build' do
+    request.body.rewind
+    payload = JSON.parse(request.body.read) rescue {}
+    
+    halt 422, {'Content-Type' => 'application/json'}, { error: 'missing stack' }.to_json if !payload['stack']
 
     jobs_dir = File.join(__dir__, 'jobs')
     Dir.mkdir(jobs_dir) unless Dir.exist?(jobs_dir)
 
-    stack_name = params['stack']
+    stack_name = payload['stack']
     file_path = File.join(jobs_dir, "#{stack_name}")
 
     File.write(file_path, Time.now.utc.to_s)
