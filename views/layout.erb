@@ -93,6 +93,15 @@
             box-shadow: 0 8px 25px rgba(0,0,0,0.1);
         }
 
+        .job-card .card-body {
+            overflow: hidden;
+        }
+
+        .job-card .property-row {
+            min-height: 24px;
+            align-items: flex-start;
+        }
+
         .stack-header {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
@@ -142,6 +151,24 @@
             font-family: 'Monaco', 'Courier New', monospace;
             font-size: 0.9rem;
             color: #212529;
+            word-break: break-all;
+            overflow-wrap: anywhere;
+            max-width: 250px;
+        }
+
+        .text-truncate-custom {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            max-width: 200px;
+        }
+
+        .path-text {
+            font-family: 'Monaco', 'Courier New', monospace;
+            font-size: 0.8rem;
+            word-break: break-all;
+            overflow-wrap: anywhere;
+            line-height: 1.2;
         }
 
         .status-active {
@@ -167,6 +194,41 @@
             .header-section {
                 border-radius: 15px 15px 0 0;
                 padding: 1.5rem;
+            }
+
+            .property-value {
+                font-size: 0.75rem;
+                max-width: 150px;
+            }
+
+            .text-truncate-custom {
+                max-width: 120px;
+            }
+
+            .path-text {
+                font-size: 0.7rem;
+            }
+        }
+
+        @media (max-width: 576px) {
+            .property-value {
+                max-width: 100px;
+            }
+
+            .text-truncate-custom {
+                max-width: 80px;
+            }
+
+            .d-flex.justify-content-between {
+                flex-direction: column;
+                align-items: flex-start !important;
+                gap: 0.25rem;
+            }
+
+            .job-card .d-flex.justify-content-between.align-items-start {
+                flex-direction: row;
+                align-items: flex-start !important;
+                gap: 0.5rem;
             }
         }
     </style>
@@ -247,7 +309,7 @@
         });
 
         // YAML file viewer function
-        async function viewYamlFile(filename) {
+        async function viewYamlFile(source, filename) {
             const modal = new bootstrap.Modal(document.getElementById('yamlModal'));
             const content = document.getElementById('yamlContent');
             const modalTitle = document.getElementById('yamlModalLabel');
@@ -265,13 +327,14 @@
             modal.show();
             
             try {
-                const response = await fetch(`/api/yaml/${filename}`);
+                const response = await fetch(`/api/yaml/${source}/${filename}`);
                 if (!response.ok) throw new Error('Failed to load file');
                 
                 const data = await response.json();
                 
                 // Update modal title
-                modalTitle.innerHTML = `<i class="bi bi-file-earmark-code"></i> ${data.name}.yml`;
+                const sourceLabel = source === 'jobs' ? 'Jobs' : 'Logs';
+                modalTitle.innerHTML = `<i class="bi bi-file-earmark-code"></i> ${data.name}.yml <small class="text-muted">(${sourceLabel})</small>`;
                 
                 // Create content HTML
                 content.innerHTML = `
@@ -334,11 +397,15 @@
             let html = '';
             for (const [key, value] of Object.entries(content)) {
                 html += `
-                    <div class="d-flex justify-content-between py-2 border-bottom">
-                        <span class="property-key fw-bold">${escapeHtml(key)}:</span>
-                        <span class="property-value ms-2 text-end" style="max-width: 60%; word-break: break-word;">
-                            ${formatValue(value)}
-                        </span>
+                    <div class="row py-2 border-bottom">
+                        <div class="col-4">
+                            <span class="property-key fw-bold">${escapeHtml(key)}:</span>
+                        </div>
+                        <div class="col-8">
+                            <span class="property-value path-text" style="word-break: break-all; font-size: 0.9rem;">
+                                ${formatValue(value)}
+                            </span>
+                        </div>
                     </div>
                 `;
             }

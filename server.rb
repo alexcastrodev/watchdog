@@ -23,8 +23,24 @@ get '/' do
     stacks = entries.group_by { |e| e[:name].split('-').first }
                                  .map { |stack, items| { stack => items } }
 
-    # Get all YAML files for Jobs tab
-    yaml_files = Dir.glob(File.join(logs_dir, '*.yml')).map do |yml_file|
+    # Get YAML files from jobs directory for Jobs tab
+    jobs_dir = File.join(__dir__, 'jobs')
+    Dir.mkdir(jobs_dir) unless Dir.exist?(jobs_dir)
+    
+    job_files = Dir.glob(File.join(jobs_dir, '*.yml')).map do |yml_file|
+        name = File.basename(yml_file, '.yml')
+        content = File.exist?(yml_file) ? YAML.load_file(yml_file) : {}
+        {
+            name: name,
+            file_path: yml_file,
+            content: content,
+            last_modified: File.mtime(yml_file),
+            size: File.size(yml_file)
+        }
+    end.sort_by { |f| f[:last_modified] }.reverse
+
+    # Get YAML files from logs directory for reference in logs tab
+    logs_yaml_files = Dir.glob(File.join(logs_dir, '*.yml')).map do |yml_file|
         name = File.basename(yml_file, '.yml')
         content = File.exist?(yml_file) ? YAML.load_file(yml_file) : {}
         {
@@ -37,17 +53,27 @@ get '/' do
     end.sort_by { |f| f[:last_modified] }.reverse
 
     @stacks = stacks
-    @yaml_files = yaml_files
+    @job_files = job_files
+    @logs_yaml_files = logs_yaml_files
     erb :index
 end
 
 # API endpoint to get YAML file details
-get '/api/yaml/:filename' do
+get '/api/yaml/:source/:filename' do
     require 'yaml'
     content_type :json
 
-    logs_dir = File.join(__dir__, 'logs')
-    yml_file = File.join(logs_dir, "#{params[:filename]}.yml")
+    # Determine source directory
+    source_dir = case params[:source]
+                 when 'jobs'
+                   File.join(__dir__, 'jobs')
+                 when 'logs'
+                   File.join(__dir__, 'logs')
+                 else
+                   halt 400, { error: 'Invalid source' }.to_json
+                 end
+
+    yml_file = File.join(source_dir, "#{params[:filename]}.yml")
 
     halt 404, { error: 'File not found' }.to_json unless File.exist?(yml_file)
 
