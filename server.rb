@@ -1,5 +1,6 @@
 require 'sinatra'
 require 'json'
+require_relative 'job'
 
 set :views, File.dirname(__FILE__) + '/views'
 set :public_folder, File.dirname(__FILE__) + '/public'
@@ -47,7 +48,8 @@ post '/api/webhook/build' do
     stack_name = payload['stack']
     file_path = File.join(jobs_dir, "#{stack_name}")
 
-    File.write(file_path, Time.now.utc.to_s)
+    @job = Job.new(name: stack_name)
+    @job.save
 
     status 201
     { message: "Job file created for stack #{stack_name}" }.to_json

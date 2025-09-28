@@ -24,10 +24,10 @@ pkill dc-watchdog
 
 # Screenshots
 
-![Dashboard](./.github/jobs.png)
+![Dashboard](./.github/jobs.jpg)
 
 ![Dashboard](./.github/jobs2.png)
 
 ![Dashboard](./.github/details.png)
 
-![Dashboard](./.github/logs.png)
+![Dashboard](./.github/logs.jpg)
