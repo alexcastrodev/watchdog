@@ -20,26 +20,29 @@ module Orchestrator
 
     def process
       dir = "#{ENV['PROJECTS_PATH']}/#{@job.name}"
-      unless Dir.exist?(dir)
-        puts "Directory #{dir} does not exist. Skipping job."
-        return
+      @job.path = "#{File.expand_path(File.dirname(__FILE__))}/logs/#{@job.name}-#{Time.now.strftime("%Y%m%d%H%M%S")}"
+
+      if Dir.exist?(dir)
+        cmd = "cd #{dir} && ./build.sh >> #{@job.path}.log"
+  
+        @pid = spawn_with_callback(cmd, lambda do |pid, success, output|
+          @job.status = success ? Job::STATUS[:done] : Job::STATUS[:error]
+          @job.log = "#{@job.path}.log"
+          @job.pid = nil
+          @job.save
+  
+          FileUtils.mv(@file, "#{@job.path}.yml")
+        end)
+  
+        @job.status = Job::STATUS[:running]
+        @job.pid = @pid
+        @job.save
+      else
+        @job.status = Job::STATUS[:error]
+        FileUtils.mv(@file, "#{@job.path}.yml")
       end
 
-      @job.path = "#{File.expand_path(File.dirname(__FILE__))}/logs/#{@job.name}-#{Time.now.strftime("%Y%m%d%H%M%S")}"
-      cmd = "cd #{dir} && ./build.sh >> #{@job.path}.log"
 
-      @pid = spawn_with_callback(cmd, lambda do |pid, success, output|
-        @job.status = success ? Job::STATUS[:done] : Job::STATUS[:error]
-        @job.log = "#{@job.path}.log"
-        @job.pid = nil
-        @job.save
-
-        FileUtils.mv(@file, "#{@job.path}.yml")
-      end)
-
-      @job.status = Job::STATUS[:running]
-      @job.pid = @pid
-      @job.save
     end
 
     # ===================
