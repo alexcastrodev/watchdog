@@ -39,10 +39,11 @@ module Orchestrator
         @job.save
       else
         @job.status = Job::STATUS[:error]
+        @job.log = "#{@job.path}.log"
+        @job.save
+        File.write(@job.path + ".log", "Directory #{dir} does not exist.\n")
         FileUtils.mv(@file, "#{@job.path}.yml")
       end
-
-
     end
 
     # ===================
