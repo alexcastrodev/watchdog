@@ -2,6 +2,8 @@ require 'yaml'
 
 module GetRoutes
   def self.register(app)
+    app.extend(HelperMethods)
+
     # Main dashboard route
     app.get '/' do
       @stacks = build_stacks_data
@@ -23,136 +25,136 @@ module GetRoutes
     end
   end
 
-  private
-
-  def self.build_stacks_data
-    logs_dir = File.join(__dir__, 'logs')
-    entries = build_log_entries(logs_dir)
-    
-    entries.group_by { |e| e[:name].split('-').first }
-           .transform_values { |items| items.sort_by { |item| item[:timestamp] }.reverse }
-           .map { |stack, items| { stack => items } }
-  end
-
-  def self.build_log_entries(logs_dir)
-    Dir.glob(File.join(logs_dir, '*.yml')).map do |yml_file|
-      name = File.basename(yml_file, '.yml')
-      log_file = File.join(logs_dir, "#{name}.log")
-      properties = File.exist?(yml_file) ? YAML.load_file(yml_file) : {}
+  module HelperMethods
+    def build_stacks_data
+      logs_dir = File.join(File.dirname(__FILE__), '..', 'logs')
+      entries = build_log_entries(logs_dir)
       
-      # Extract timestamp from filename for sorting (format: stack-YYYYMMDDHHMMSS)
-      timestamp_match = name.match(/-(\d{14})$/)
-      timestamp = timestamp_match ? timestamp_match[1] : '0'
+      entries.group_by { |e| e[:name].split('-').first }
+             .transform_values { |items| items.sort_by { |item| item[:timestamp] }.reverse }
+             .map { |stack, items| { stack => items } }
+    end
+
+    def build_log_entries(logs_dir)
+      Dir.glob(File.join(logs_dir, '*.yml')).map do |yml_file|
+        name = File.basename(yml_file, '.yml')
+        log_file = File.join(logs_dir, "#{name}.log")
+        properties = File.exist?(yml_file) ? YAML.load_file(yml_file) : {}
+        
+        # Extract timestamp from filename for sorting (format: stack-YYYYMMDDHHMMSS)
+        timestamp_match = name.match(/-(\d{14})$/)
+        timestamp = timestamp_match ? timestamp_match[1] : '0'
+        
+        {
+          name: name,
+          status: properties[:status],
+          properties: properties,
+          log: File.exist?(log_file) ? log_file : nil,
+          yml_file: yml_file,
+          timestamp: timestamp
+        }
+      end.sort_by { |entry| entry[:timestamp] }.reverse # Most recent first
+    end
+
+    def fetch_job_files
+      jobs_dir = File.join(File.dirname(__FILE__), '..', 'jobs')
+      Dir.mkdir(jobs_dir) unless Dir.exist?(jobs_dir)
+      
+      Dir.glob(File.join(jobs_dir, '*.yml')).map do |yml_file|
+        build_file_info(yml_file)
+      end.sort_by { |f| f[:last_modified] }.reverse
+    end
+
+    def fetch_logs_yaml_files
+      logs_dir = File.join(File.dirname(__FILE__), '..', 'logs')
+      
+      Dir.glob(File.join(logs_dir, '*.yml')).map do |yml_file|
+        file_info = build_file_info(yml_file)
+        
+        # Extract timestamp from filename for sorting (format: stack-YYYYMMDDHHMMSS)
+        name = File.basename(yml_file, '.yml')
+        timestamp_match = name.match(/-(\d{14})$/)
+        file_info[:timestamp] = timestamp_match ? timestamp_match[1] : '0'
+        
+        file_info
+      end.sort_by { |f| f[:timestamp] }.reverse # Most recent first
+    end
+
+    def build_file_info(yml_file)
+      name = File.basename(yml_file, '.yml')
+      content = File.exist?(yml_file) ? YAML.load_file(yml_file) : {}
       
       {
         name: name,
-        status: properties[:status],
-        properties: properties,
-        log: File.exist?(log_file) ? log_file : nil,
-        yml_file: yml_file,
-        timestamp: timestamp
+        file_path: yml_file,
+        content: content,
+        last_modified: File.mtime(yml_file),
+        size: File.size(yml_file)
       }
-    end.sort_by { |entry| entry[:timestamp] }.reverse # Most recent first
-  end
-
-  def self.fetch_job_files
-    jobs_dir = File.join(__dir__, 'jobs')
-    Dir.mkdir(jobs_dir) unless Dir.exist?(jobs_dir)
-    
-    Dir.glob(File.join(jobs_dir, '*.yml')).map do |yml_file|
-      build_file_info(yml_file)
-    end.sort_by { |f| f[:last_modified] }.reverse
-  end
-
-  def self.fetch_logs_yaml_files
-    logs_dir = File.join(__dir__, 'logs')
-    
-    Dir.glob(File.join(logs_dir, '*.yml')).map do |yml_file|
-      file_info = build_file_info(yml_file)
-      
-      # Extract timestamp from filename for sorting (format: stack-YYYYMMDDHHMMSS)
-      name = File.basename(yml_file, '.yml')
-      timestamp_match = name.match(/-(\d{14})$/)
-      file_info[:timestamp] = timestamp_match ? timestamp_match[1] : '0'
-      
-      file_info
-    end.sort_by { |f| f[:timestamp] }.reverse # Most recent first
-  end
-
-  def self.build_file_info(yml_file)
-    name = File.basename(yml_file, '.yml')
-    content = File.exist?(yml_file) ? YAML.load_file(yml_file) : {}
-    
-    {
-      name: name,
-      file_path: yml_file,
-      content: content,
-      last_modified: File.mtime(yml_file),
-      size: File.size(yml_file)
-    }
-  end
-
-  def self.get_yaml_file_details(source, filename)
-    # Determine source directory
-    source_dir = case source
-                 when 'jobs'
-                   File.join(__dir__, 'jobs')
-                 when 'logs'
-                   File.join(__dir__, 'logs')
-                 else
-                   halt 400, { error: 'Invalid source' }.to_json
-                 end
-
-    yml_file = File.join(source_dir, "#{filename}.yml")
-    halt 404, { error: 'File not found' }.to_json unless File.exist?(yml_file)
-
-    begin
-      content = YAML.load_file(yml_file)
-      raw_content = File.read(yml_file)
-
-      {
-        name: filename,
-        content: content,
-        raw_content: raw_content,
-        last_modified: File.mtime(yml_file).strftime('%Y-%m-%d %H:%M:%S'),
-        size: File.size(yml_file),
-        file_path: yml_file
-      }.to_json
-    rescue => e
-      halt 500, { error: "Error reading file: #{e.message}" }.to_json
     end
-  end
 
-  def self.get_log_file_content(filename)
-    logs_dir = File.join(__dir__, 'logs')
-    log_file = File.join(logs_dir, "#{filename}.log")
+    def get_yaml_file_details(source, filename)
+      # Determine source directory
+      source_dir = case source
+                   when 'jobs'
+                     File.join(File.dirname(__FILE__), '..', 'jobs')
+                   when 'logs'
+                     File.join(File.dirname(__FILE__), '..', 'logs')
+                   else
+                     halt 400, { error: 'Invalid source' }.to_json
+                   end
 
-    halt 404, { error: 'Log file not found' }.to_json unless File.exist?(log_file)
+      yml_file = File.join(source_dir, "#{filename}.yml")
+      halt 404, { error: 'File not found' }.to_json unless File.exist?(yml_file)
 
-    begin
-      # Read log file with size limit for performance
-      content = File.read(log_file)
-      lines = content.lines
-      
-      # If file is too large, show last 1000 lines
-      if lines.length > 1000
-        content = lines.last(1000).join
-        truncated = true
-      else
-        truncated = false
+      begin
+        content = YAML.load_file(yml_file)
+        raw_content = File.read(yml_file)
+
+        {
+          name: filename,
+          content: content,
+          raw_content: raw_content,
+          last_modified: File.mtime(yml_file).strftime('%Y-%m-%d %H:%M:%S'),
+          size: File.size(yml_file),
+          file_path: yml_file
+        }.to_json
+      rescue => e
+        halt 500, { error: "Error reading file: #{e.message}" }.to_json
       end
+    end
 
-      {
-        name: filename,
-        content: content,
-        last_modified: File.mtime(log_file).strftime('%Y-%m-%d %H:%M:%S'),
-        size: File.size(log_file),
-        lines_count: lines.length,
-        truncated: truncated,
-        file_path: log_file
-      }.to_json
-    rescue => e
-      halt 500, { error: "Error reading log file: #{e.message}" }.to_json
+    def get_log_file_content(filename)
+      logs_dir = File.join(File.dirname(__FILE__), '..', 'logs')
+      log_file = File.join(logs_dir, "#{filename}.log")
+
+      halt 404, { error: 'Log file not found' }.to_json unless File.exist?(log_file)
+
+      begin
+        # Read log file with size limit for performance
+        content = File.read(log_file)
+        lines = content.lines
+        
+        # If file is too large, show last 1000 lines
+        if lines.length > 1000
+          content = lines.last(1000).join
+          truncated = true
+        else
+          truncated = false
+        end
+
+        {
+          name: filename,
+          content: content,
+          last_modified: File.mtime(log_file).strftime('%Y-%m-%d %H:%M:%S'),
+          size: File.size(log_file),
+          lines_count: lines.length,
+          truncated: truncated,
+          file_path: log_file
+        }.to_json
+      rescue => e
+        halt 500, { error: "Error reading log file: #{e.message}" }.to_json
+      end
     end
   end
 end
