@@ -1,0 +1,108 @@
+/* Watchdog Dark Theme - Sidekiq Inspired */
+:root {
+    --dark-bg: #1a1a1a;
+    --darker-bg: #141414;
+    --card-bg: #2d2d2d;
+    --border-color: #404040;
+    --text-primary: #ffffff;
+    --text-secondary: #b3b3b3;
+    --accent-red: #dc3545;
+    --accent-success: #28a745;
+    --accent-warning: #ffc107;
+}
+
+body {
+    background-color: var(--dark-bg) !important;
+    color: var(--text-primary) !important;
+}
+
+.main-container {
+    background-color: var(--darker-bg) !important;
+    border: 1px solid var(--border-color);
+}
+
+.header-section {
+    background-color: var(--accent-red) !important;
+    color: white !important;
+}
+
+.card {
+    background-color: var(--card-bg) !important;
+    border-color: var(--border-color) !important;
+    color: var(--text-primary) !important;
+}
+
+.nav-tabs {
+    background-color: var(--card-bg) !important;
+    border-color: var(--border-color) !important;
+}
+
+.nav-tabs .nav-link {
+    background-color: transparent !important;
+    color: var(--text-secondary) !important;
+    border-color: transparent !important;
+}
+
+.nav-tabs .nav-link:hover {
+    background-color: rgba(220, 53, 69, 0.1) !important;
+    color: var(--accent-red) !important;
+}
+
+.nav-tabs .nav-link.active {
+    background-color: var(--darker-bg) !important;
+    color: var(--accent-red) !important;
+    border-bottom-color: var(--accent-red) !important;
+}
+
+.stack-header {
+    background-color: var(--accent-red) !important;
+}
+
+.job-row:hover {
+    background-color: rgba(220, 53, 69, 0.1) !important;
+}
+
+.refresh-btn {
+    background-color: var(--accent-red) !important;
+}
+
+.text-muted {
+    color: var(--text-secondary) !important;
+}
+
+.border-bottom {
+    border-color: var(--border-color) !important;
+}
+
+.modal-content {
+    background-color: var(--card-bg) !important;
+    border-color: var(--border-color) !important;
+}
+
+.modal-header {
+    border-color: var(--border-color) !important;
+}
+
+.modal-footer {
+    border-color: var(--border-color) !important;
+}
+
+.property-value {
+    font-family: 'Courier New', monospace;
+    font-size: 0.85rem;
+}
+
+.text-truncate-custom {
+    max-width: 250px;
+}
+
+.path-text {
+    font-family: 'Courier New', monospace;
+    font-size: 0.8rem;
+}
+
+@media (max-width: 768px) {
+    .text-truncate-custom {
+        max-width: 150px;
+    }
+}

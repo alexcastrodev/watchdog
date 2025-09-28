@@ -1,7 +1,7 @@
 <!-- Header -->
-<div class="header-section">
-    <h1><i class="bi bi-shield-check"></i> Watchdog</h1>
-    <p class="mb-0">Job Monitoring Dashboard</p>
+<div class="header-section p-4 text-center rounded-top-4">
+    <h1 class="display-4 fw-bold mb-2"><i class="bi bi-shield-check me-3"></i>Watchdog</h1>
+    <p class="lead mb-0">Job Monitoring Dashboard</p>
 </div>
 
 <!-- Main Content -->
@@ -31,29 +31,27 @@
         <!-- Jobs Tab -->
         <div class="tab-pane fade show active" id="jobs" role="tabpanel">
             <% if @job_files.empty? %>
-                <div class="empty-state">
-                    <div class="text-center">
-                        <i class="bi bi-gear display-1 text-muted"></i>
-                        <h3 class="mt-3">No Job Files Found</h3>
-                        <p class="text-muted">No configuration files found in the jobs directory.</p>
-                        <small class="text-muted">
-                            Add YAML configuration files to the jobs directory to start managing jobs.
-                        </small>
-                    </div>
+                <div class="text-center py-5">
+                    <i class="bi bi-gear display-1 text-muted"></i>
+                    <h3 class="mt-3 text-light">No Job Files Found</h3>
+                    <p class="text-muted">No configuration files found in the jobs directory.</p>
+                    <small class="text-muted">
+                        Add YAML configuration files to the jobs directory to start managing jobs.
+                    </small>
                 </div>
             <% else %>
                 <div class="row g-4">
                     <% @job_files.each do |job_file| %>
                         <div class="col-lg-6 col-xl-4">
-                            <div class="card job-card h-100">
+                            <div class="card border-secondary h-100">
                                 <div class="card-body">
                                     <!-- File Header -->
                                     <div class="d-flex justify-content-between align-items-start mb-3">
-                                        <h6 class="card-title mb-0 text-truncate-custom" title="<%= job_file[:name] %>.yml">
-                                            <i class="bi bi-file-earmark-code text-primary"></i>
+                                        <h6 class="card-title mb-0 text-truncate-custom text-light" title="<%= job_file[:name] %>.yml">
+                                            <i class="bi bi-file-earmark-code text-danger me-2"></i>
                                             <%= job_file[:name] %>.yml
                                         </h6>
-                                        <span class="badge bg-primary">
+                                        <span class="badge bg-danger">
                                             <%= (job_file[:size] / 1024.0).round(1) %> KB
                                         </span>
                                     </div>
@@ -90,10 +88,10 @@
                                     
                                     <!-- Actions -->
                                     <div class="d-flex gap-2">
-                                        <button class="btn btn-outline-primary btn-sm flex-fill" onclick="viewYamlFile('jobs', '<%= job_file[:name] %>')">
-                                            <i class="bi bi-eye"></i> View Details
+                                        <button class="btn btn-outline-danger btn-sm flex-fill" onclick="viewYamlFile('jobs', '<%= job_file[:name] %>')">
+                                            <i class="bi bi-eye me-1"></i>View Details
                                         </button>
-                                        <a href="<%= job_file[:file_path] %>" class="btn btn-outline-secondary btn-sm" download>
+                                        <a href="<%= job_file[:file_path] %>" class="btn btn-outline-light btn-sm" download>
                                             <i class="bi bi-download"></i>
                                         </a>
                                     </div>
@@ -110,33 +108,33 @@
             <!-- Statistics Cards -->
             <div class="row g-3 mb-4">
                 <div class="col-md-3 col-sm-6">
-                    <div class="card stats-card text-center h-100">
+                    <div class="card border-secondary text-center h-100">
                         <div class="card-body">
-                            <div class="stat-number"><%= total_stacks %></div>
+                            <h2 class="text-danger fw-bold"><%= total_stacks %></h2>
                             <small class="text-muted">Active Stacks</small>
                         </div>
                     </div>
                 </div>
                 <div class="col-md-3 col-sm-6">
-                    <div class="card stats-card text-center h-100">
+                    <div class="card border-secondary text-center h-100">
                         <div class="card-body">
-                            <div class="stat-number"><%= total_jobs %></div>
+                            <h2 class="text-danger fw-bold"><%= total_jobs %></h2>
                             <small class="text-muted">Total Jobs</small>
                         </div>
                     </div>
                 </div>
                 <div class="col-md-3 col-sm-6">
-                    <div class="card stats-card text-center h-100">
+                    <div class="card border-secondary text-center h-100">
                         <div class="card-body">
-                            <div class="stat-number"><%= jobs_with_logs %></div>
+                            <h2 class="text-success fw-bold"><%= jobs_with_logs %></h2>
                             <small class="text-muted">Jobs with Logs</small>
                         </div>
                     </div>
                 </div>
                 <div class="col-md-3 col-sm-6">
-                    <div class="card stats-card text-center h-100">
+                    <div class="card border-secondary text-center h-100">
                         <div class="card-body">
-                            <div class="stat-number"><%= ((jobs_with_logs.to_f / [total_jobs, 1].max) * 100).round(1) %>%</div>
+                            <h2 class="text-warning fw-bold"><%= ((jobs_with_logs.to_f / [total_jobs, 1].max) * 100).round(1) %>%</h2>
                             <small class="text-muted">Coverage</small>
                         </div>
                     </div>
@@ -145,15 +143,13 @@
 
             <!-- Stacks and Jobs -->
             <% if @stacks.empty? %>
-                <div class="empty-state">
-                    <div class="text-center">
-                        <i class="bi bi-inbox display-1 text-muted"></i>
-                        <h3 class="mt-3">No Jobs Found</h3>
-                        <p class="text-muted">Your watchdog is ready and waiting for jobs to monitor.</p>
-                        <small class="text-muted">
-                            Jobs will appear here once you start adding YAML configuration files to the logs directory.
-                        </small>
-                    </div>
+                <div class="text-center py-5">
+                    <i class="bi bi-inbox display-1 text-muted"></i>
+                    <h3 class="mt-3 text-light">No Jobs Found</h3>
+                    <p class="text-muted">Your watchdog is ready and waiting for jobs to monitor.</p>
+                    <small class="text-muted">
+                        Jobs will appear here once you start adding YAML configuration files to the logs directory.
+                    </small>
                 </div>
             <% else %>
                 <div class="row g-4">
@@ -165,60 +161,69 @@
                             <div class="card">
                                 <!-- Stack Header -->
                                 <div class="card-header stack-header d-flex justify-content-between align-items-center">
-                                    <h5 class="mb-0">
-                                        <i class="bi bi-archive"></i> <%= stack_name.upcase %>
+                                    <h5 class="mb-0 text-white">
+                                        <i class="bi bi-archive me-2"></i><%= stack_name.upcase %>
                                     </h5>
                                     <span class="badge bg-light text-dark">
                                         <%= jobs.length %> job<%= jobs.length != 1 ? 's' : '' %>
                                     </span>
                                 </div>
                                 
-                                <!-- Jobs Grid -->
+                                <!-- Jobs List -->
                                 <div class="card-body">
-                                    <div class="row g-3">
-                                        <% jobs.each do |job| %>
-                                            <div class="col-lg-6 col-xl-4">
-                                                <div class="card job-card h-100">
-                                                    <div class="card-body">
-                                                        <!-- Job Header -->
-                                                        <div class="d-flex justify-content-between align-items-start mb-3">
-                                                            <h6 class="card-title mb-0 text-truncate-custom" title="<%= job[:name] %>"><%= job[:name] %></h6>
-                                                            <span class="badge <%= job[:log] ? 'status-active' : 'status-inactive' %>">
-                                                                <i class="bi bi-<%= job[:log] ? 'check-circle' : 'clock' %>"></i>
-                                                                <%= job[:log] ? 'Active' : 'Pending' %>
-                                                            </span>
-                                                        </div>
-                                                        
-                                                        <!-- Properties -->
+                                    <% jobs.each_with_index do |job, index| %>
+                                        <div class="d-flex align-items-center justify-content-between p-3 border-bottom <%= index == jobs.length - 1 ? 'border-0' : '' %> job-row">
+                                            <div class="flex-grow-1">
+                                                <div class="row align-items-center">
+                                                    <div class="col-md-3">
+                                                        <h6 class="mb-1 text-truncate-custom" title="<%= job[:name] %>">
+                                                            <i class="bi bi-box-seam me-2 text-primary"></i>
+                                                            <%= job[:name] %>
+                                                        </h6>
+                                                        <span class="badge <%= job[:log] ? 'bg-success' : 'bg-warning text-dark' %>">
+                                                            <i class="bi bi-<%= job[:log] ? 'check-circle' : 'clock' %> me-1"></i>
+                                                            <%= job[:log] ? 'Active' : 'Pending' %>
+                                                        </span>
+                                                    </div>
+                                                    <div class="col-md-6">
                                                         <% if job[:properties] && !job[:properties].empty? %>
-                                                            <div class="mb-3">
-                                                                <% job[:properties].each do |key, value| %>
-                                                                    <div class="d-flex justify-content-between py-1 border-bottom">
-                                                                        <span class="property-key flex-shrink-0"><%= key %>:</span>
-                                                                        <span class="property-value ms-2 text-end path-text" title="<%= value %>" style="max-width: 60%;"><%= value %></span>
+                                                            <div class="row g-1">
+                                                                <% job[:properties].first(2).each do |key, value| %>
+                                                                    <div class="col-12">
+                                                                        <small class="text-muted">
+                                                                            <span class="property-key"><%= key %>:</span>
+                                                                            <span class="property-value path-text ms-1" title="<%= value %>">
+                                                                                <%= truncate_text(value.to_s, 50) %>
+                                                                            </span>
+                                                                        </small>
+                                                                    </div>
+                                                                <% end %>
+                                                                <% if job[:properties].size > 2 %>
+                                                                    <div class="col-12">
+                                                                        <small class="text-muted">... and <%= job[:properties].size - 2 %> more properties</small>
                                                                     </div>
                                                                 <% end %>
                                                             </div>
                                                         <% end %>
-                                                        
-                                                        <!-- Actions -->
-                                                        <div class="d-flex gap-2">
+                                                    </div>
+                                                    <div class="col-md-3 text-end">
+                                                        <div class="btn-group" role="group">
                                                             <% if job[:log] %>
-                                                                <a href="<%= job[:log] %>" class="btn btn-outline-primary btn-sm flex-fill">
-                                                                    <i class="bi bi-file-earmark-text"></i> View Log
-                                                                </a>
+                                                                <button class="btn btn-outline-danger btn-sm" onclick="viewLogFile('<%= job[:name] %>')">
+                                                                    <i class="bi bi-file-earmark-text me-1"></i>Log
+                                                                </button>
                                                             <% end %>
                                                             <% if job[:yml_file] %>
-                                                                <button class="btn btn-outline-secondary btn-sm flex-fill" onclick="viewYamlFile('logs', '<%= job[:name] %>')">
-                                                                    <i class="bi bi-file-code"></i> View YAML
+                                                                <button class="btn btn-outline-light btn-sm" onclick="viewYamlFile('logs', '<%= job[:name] %>')">
+                                                                    <i class="bi bi-file-code me-1"></i>YAML
                                                                 </button>
                                                             <% end %>
                                                         </div>
                                                     </div>
                                                 </div>
                                             </div>
-                                        <% end %>
-                                    </div>
+                                        </div>
+                                    <% end %>
                                 </div>
                             </div>
                         </div>

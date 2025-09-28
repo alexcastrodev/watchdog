@@ -1,6 +1,14 @@
 require 'sinatra'
 
 set :views, File.dirname(__FILE__) + '/views'
+set :public_folder, File.dirname(__FILE__) + '/public'
+
+helpers do
+  def truncate_text(text, length = 50)
+    return text if text.length <= length
+    text[0, length] + '...'
+  end
+end
 
 # body:
 ## stack: remapi, feed
@@ -91,6 +99,42 @@ get '/api/yaml/:source/:filename' do
         }.to_json
     rescue => e
         halt 500, { error: "Error reading file: #{e.message}" }.to_json
+    end
+end
+
+# API endpoint to get log file content
+get '/api/log/:filename' do
+    content_type :json
+
+    logs_dir = File.join(__dir__, 'logs')
+    log_file = File.join(logs_dir, "#{params[:filename]}.log")
+
+    halt 404, { error: 'Log file not found' }.to_json unless File.exist?(log_file)
+
+    begin
+        # Read log file with size limit for performance
+        content = File.read(log_file)
+        lines = content.lines
+        
+        # If file is too large, show last 1000 lines
+        if lines.length > 1000
+            content = lines.last(1000).join
+            truncated = true
+        else
+            truncated = false
+        end
+
+        {
+            name: params[:filename],
+            content: content,
+            last_modified: File.mtime(log_file).strftime('%Y-%m-%d %H:%M:%S'),
+            size: File.size(log_file),
+            lines_count: lines.length,
+            truncated: truncated,
+            file_path: log_file
+        }.to_json
+    rescue => e
+        halt 500, { error: "Error reading log file: #{e.message}" }.to_json
     end
 end
 
