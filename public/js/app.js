@@ -103,12 +103,22 @@ async function viewYamlFile(source, filename) {
   }
 }
 
+// Global variables for tail functionality
+let tailEventSource = null;
+let currentTailFilename = null;
+let tailLogElement = null;
+
 // Log file viewer function
 async function viewLogFile(filename) {
   const modal = new bootstrap.Modal(document.getElementById('logModal'));
   const content = document.getElementById('logContent');
   const modalTitle = document.getElementById('logModalLabel');
   const downloadBtn = document.getElementById('downloadLogBtn');
+  const tailBtn = document.getElementById('tailLogBtn');
+  const stopTailBtn = document.getElementById('stopTailBtn');
+  
+  // Store current filename for tail functionality
+  currentTailFilename = filename;
   
   // Show loading state
   content.innerHTML = `
@@ -136,19 +146,19 @@ async function viewLogFile(filename) {
               <div class="row g-3 mb-3">
                   <div class="col-md-3">
                       <small class="text-muted">File Size:</small>
-                      <div class="fw-bold">${formatFileSize(data.size)}</div>
+                      <div class="fw-bold" id="logFileSize">${formatFileSize(data.size)}</div>
                   </div>
                   <div class="col-md-3">
                       <small class="text-muted">Lines:</small>
-                      <div class="fw-bold">${data.lines_count}</div>
+                      <div class="fw-bold" id="logLinesCount">${data.lines_count}</div>
                   </div>
                   <div class="col-md-3">
                       <small class="text-muted">Last Modified:</small>
-                      <div class="fw-bold">${data.last_modified}</div>
+                      <div class="fw-bold" id="logLastModified">${data.last_modified}</div>
                   </div>
                   <div class="col-md-3">
                       <small class="text-muted">Status:</small>
-                      <div class="fw-bold ${data.truncated ? 'text-warning' : 'text-success'}">
+                      <div class="fw-bold ${data.truncated ? 'text-warning' : 'text-success'}" id="logStatus">
                           ${data.truncated ? 'Truncated (last 1000 lines)' : 'Complete'}
                       </div>
                   </div>
@@ -157,11 +167,21 @@ async function viewLogFile(filename) {
           
           <div>
               <h6 class="border-bottom pb-2 mb-3">
-                  <i class="bi bi-terminal"></i> Log Content
+                  <i class="bi bi-terminal"></i> Log Content 
+                  <span id="tailStatus" class="badge bg-secondary ms-2" style="display: none;">
+                      <i class="bi bi-circle-fill text-success blink"></i> Live Tail
+                  </span>
               </h6>
-              <pre class="bg-dark text-light p-3 rounded" style="max-height: 500px; overflow-y: auto; font-size: 0.85rem; white-space: pre-wrap; word-wrap: break-word;"><code>${escapeHtml(data.content)}</code></pre>
+              <pre class="bg-dark text-light p-3 rounded" id="logContentPre" style="max-height: 500px; overflow-y: auto; font-size: 0.85rem; white-space: pre-wrap; word-wrap: break-word;"><code id="logContentCode">${escapeHtml(data.content)}</code></pre>
           </div>
       `;
+      
+      // Store reference to log element
+      tailLogElement = document.getElementById('logContentCode');
+      
+      // Show tail button
+      tailBtn.style.display = 'inline-block';
+      stopTailBtn.style.display = 'none';
       
       // Set up download button
       downloadBtn.onclick = () => {
@@ -174,6 +194,10 @@ async function viewLogFile(filename) {
           URL.revokeObjectURL(url);
       };
       
+      // Set up tail button
+      tailBtn.onclick = () => startTailLog();
+      stopTailBtn.onclick = () => stopTailLog();
+      
   } catch (error) {
       content.innerHTML = `
           <div class="alert alert-danger" role="alert">
@@ -183,6 +207,138 @@ async function viewLogFile(filename) {
       `;
   }
 }
+
+// Start tail -f functionality
+function startTailLog() {
+  if (!currentTailFilename || tailEventSource) return;
+  
+  const tailBtn = document.getElementById('tailLogBtn');
+  const stopTailBtn = document.getElementById('stopTailBtn');
+  const tailStatus = document.getElementById('tailStatus');
+  const logContentPre = document.getElementById('logContentPre');
+  
+  // Update UI
+  tailBtn.style.display = 'none';
+  stopTailBtn.style.display = 'inline-block';
+  tailStatus.style.display = 'inline-block';
+  logContentPre.classList.add('tailing');
+  
+  // Clear existing content to start fresh
+  tailLogElement.textContent = '';
+  
+  // Create EventSource for Server-Sent Events
+  tailEventSource = new EventSource(`/api/log/${currentTailFilename}/tail`);
+  
+  tailEventSource.onmessage = function(event) {
+    try {
+      const data = JSON.parse(event.data);
+      
+      if (data.error) {
+        console.error('Tail error:', data.error);
+        showTailError(data.error);
+        stopTailLog();
+        return;
+      }
+      
+      if (data.type === 'initial') {
+        // Replace content with initial tail content
+        tailLogElement.textContent = data.content;
+        updateLogStats(data.size, data.content);
+      } else if (data.type === 'update') {
+        // Append new content
+        tailLogElement.textContent += data.content;
+        updateLogStats(data.size, data.content);
+        
+        // Auto-scroll to bottom
+        logContentPre.scrollTop = logContentPre.scrollHeight;
+        
+        // Flash effect for new content
+        flashNewContent();
+      }
+      
+    } catch (e) {
+      console.error('Error parsing tail data:', e);
+      showTailError('Error parsing server response');
+    }
+  };
+  
+  tailEventSource.onerror = function(event) {
+    console.error('EventSource error:', event);
+    showTailError('Connection to server lost');
+    stopTailLog();
+  };
+}
+
+// Show error message in tail status
+function showTailError(message) {
+  const tailStatus = document.getElementById('tailStatus');
+  if (tailStatus) {
+    tailStatus.innerHTML = `<i class="bi bi-exclamation-triangle text-warning"></i> ${message}`;
+    tailStatus.className = 'badge bg-warning ms-2';
+  }
+}
+
+// Flash effect for new content
+function flashNewContent() {
+  const logContentPre = document.getElementById('logContentPre');
+  if (logContentPre) {
+    logContentPre.style.borderLeftColor = '#28a745';
+    setTimeout(() => {
+      logContentPre.style.borderLeftColor = '';
+    }, 200);
+  }
+}
+
+// Stop tail -f functionality
+function stopTailLog() {
+  if (tailEventSource) {
+    tailEventSource.close();
+    tailEventSource = null;
+  }
+  
+  const tailBtn = document.getElementById('tailLogBtn');
+  const stopTailBtn = document.getElementById('stopTailBtn');
+  const tailStatus = document.getElementById('tailStatus');
+  const logContentPre = document.getElementById('logContentPre');
+  
+  // Update UI
+  tailBtn.style.display = 'inline-block';
+  stopTailBtn.style.display = 'none';
+  tailStatus.style.display = 'none';
+  
+  if (logContentPre) {
+    logContentPre.classList.remove('tailing');
+  }
+  
+  // Reset status to static
+  const statusElement = document.getElementById('logStatus');
+  if (statusElement) {
+    statusElement.innerHTML = 'Static View';
+    statusElement.className = 'fw-bold text-light';
+  }
+}
+
+// Update log statistics during tail
+function updateLogStats(size, newContent) {
+  const fileSizeElement = document.getElementById('logFileSize');
+  const statusElement = document.getElementById('logStatus');
+  
+  if (fileSizeElement) {
+    fileSizeElement.textContent = formatFileSize(size);
+  }
+  
+  if (statusElement) {
+    statusElement.innerHTML = '<i class="bi bi-circle-fill text-success blink"></i> Live Updating';
+    statusElement.className = 'fw-bold text-success';
+  }
+}
+
+// Clean up when modal is closed
+document.getElementById('logModal').addEventListener('hidden.bs.modal', function() {
+  stopTailLog();
+  currentTailFilename = null;
+  tailLogElement = null;
+});
 
 // Helper functions
 function formatYamlContent(content) {

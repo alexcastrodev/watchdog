@@ -106,3 +106,56 @@ body {
         max-width: 150px;
     }
 }
+
+/* Tail -f specific styles */
+.blink {
+    animation: blink-animation 1s steps(5, start) infinite;
+}
+
+@keyframes blink-animation {
+    to {
+        visibility: hidden;
+    }
+}
+
+#tailStatus {
+    font-size: 0.75rem;
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.7;
+    }
+    100% {
+        opacity: 1;
+    }
+}
+
+/* Enhance log content area for tail functionality */
+#logContentPre {
+    transition: border-color 0.3s ease;
+}
+
+#logContentPre.tailing {
+    border-left: 3px solid var(--accent-success) !important;
+}
+
+/* Button hover effects */
+#tailLogBtn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(40, 167, 69, 0.3);
+}
+
+#stopTailBtn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(255, 193, 7, 0.3);
+}
+
+/* Smooth scrolling for log content */
+#logContentPre {
+    scroll-behavior: smooth;
+}
