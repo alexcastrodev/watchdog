@@ -136,9 +136,8 @@ get '/api/job/:filename/tail' do
         }
         out << "data: #{data.to_json}\n\n"
         
-        # Keep checking for changes
         loop do
-          sleep 1 # Check every second for file changes
+          sleep 5
           
           unless File.exist?(job_file)
             error_data = { error: "Job file no longer exists" }
@@ -147,18 +146,16 @@ get '/api/job/:filename/tail' do
           end
           
           current_modified = File.mtime(job_file)
-          current_size = File.size(job_file)
           
-          if current_modified > last_modified || current_size != initial_size
+          if current_modified > last_modified
             # File has been modified
             new_content = File.read(job_file)
             last_modified = current_modified
-            initial_size = current_size
             
             update_data = {
               type: 'update',
               content: new_content,
-              size: current_size,
+              size: File.size(job_file),
               last_modified: current_modified.strftime('%Y-%m-%d %H:%M:%S')
             }
             out << "data: #{update_data.to_json}\n\n"
