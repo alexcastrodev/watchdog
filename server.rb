@@ -27,6 +27,7 @@ get '/' do
         
         {
             name: name,
+            status: properties[:status],
             properties: properties,
             log: File.exist?(log_file) ? log_file : nil,
             yml_file: yml_file,
