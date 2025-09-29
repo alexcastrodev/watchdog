@@ -31,7 +31,7 @@ User=user
 Group=user
 
 WorkingDirectory=/home/user/watchdog
-ExecStart=/home/user/.rbenv/shims/ruby ruby /home/user/watchdog/server.rb
+ExecStart=/home/user/.rbenv/shims/ruby /home/user/watchdog/server.rb
 Restart=always
 RestartSec=5
 Environment=PROJECTS_PATH=/home/user/sites
