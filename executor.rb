@@ -1,5 +1,6 @@
 require 'yaml'
 require 'fileutils'
+require 'open3'
 require_relative 'job'
 
 module Orchestrator
@@ -46,30 +47,28 @@ module Orchestrator
     end
 
     def spawn_process(cmd)
-      r, w = IO.pipe
+      Open3.popen2(cmd) do |stdin, stdout, status_thread|
+        @job.pid = status_thread.pid
+        @job.save
+        
+        stdout.each_line do |line|
+          File.write(@job.log, line, mode: "a")
+        end
 
-      pid = Process.spawn(cmd, out: w, err: w)
+        if status_thread.value.success?
+          @job.status = Job::STATUS[:done]
+        else
+          @job.status = Job::STATUS[:done_with_error]
+        end
+
+        @job.pid = nil
+        @job.save
+        FileUtils.mv(@file, "#{@job.path}.yml")
+      end
+
       @job.status = Job::STATUS[:running]
       @job.pid = pid
       @job.save
-      debug("Spawn PID: #{pid}")
-
-      w.close
-
-      output = r.read
-      _, status = Process.wait2(pid)
-
-      debug("Executed process with status: #{status.success? ? "success" : "error"}")
-      @job.status = status.success? ? Job::STATUS[:done] : Job::STATUS[:done_with_error]
-      @job.pid = nil
-      @job.save
-
-      FileUtils.mv(@file, "#{@job.path}.yml")
-      File.write(@job.log, output, mode: "a")
-      debug("Finished: #{@file} with #{@job.path}")
-
-      debug("Closing read pipe")
-      r.close
     end
   end
 end

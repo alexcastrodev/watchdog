@@ -1,0 +1,229 @@
+<!-- Header -->
+<div class="header-section p-4 text-center rounded-top-4">
+    <div class="d-flex justify-content-between align-items-center">
+        <a href="/" class="btn btn-outline-light">
+            <i class="bi bi-arrow-left me-2"></i>Back to Dashboard
+        </a>
+        <h1 class="mb-0">
+            <i class="bi bi-gear text-success me-3"></i>
+            Job Monitor: <%= @filename %>
+        </h1>
+        <div class="btn-group">
+            <a href="/yaml/jobs/<%= @filename %>" class="btn btn-outline-danger">
+                <i class="bi bi-file-code me-1"></i>View Config
+            </a>
+        </div>
+    </div>
+</div>
+
+<!-- Content -->
+<div class="p-4">
+    <!-- Job Info -->
+    <div class="row g-3 mb-4">
+        <div class="col-md-3">
+            <div class="card border-secondary text-center h-100">
+                <div class="card-body">
+                    <h6 class="text-muted mb-2">Job Name</h6>
+                    <h5 class="text-success fw-bold"><%= @filename %></h5>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-secondary text-center h-100">
+                <div class="card-body">
+                    <h6 class="text-muted mb-2">Config Size</h6>
+                    <p class="fw-bold"><%= (@file_data['size'] / 1024.0).round(1) %> KB</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-secondary text-center h-100">
+                <div class="card-body">
+                    <h6 class="text-muted mb-2">Last Updated</h6>
+                    <p class="fw-bold"><%= @file_data['last_modified'] %></p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-secondary text-center h-100">
+                <div class="card-body">
+                    <h6 class="text-muted mb-2">Status</h6>
+                    <span class="badge bg-success fs-6" id="jobStatus">Monitoring</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Job Configuration -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card border-secondary">
+                <div class="card-header">
+                    <h6 class="mb-0">Job Configuration</h6>
+                </div>
+                <div class="card-body" style="max-height: 300px; overflow-y: auto;">
+                    <% if @file_data['parsed_content'] && !@file_data['parsed_content'].empty? %>
+                        <% @file_data['parsed_content'].each do |key, value| %>
+                            <div class="row py-2 border-bottom">
+                                <div class="col-3">
+                                    <span class="property-key fw-bold"><%= key %>:</span>
+                                </div>
+                                <div class="col-9">
+                                    <span class="property-value" style="word-break: break-all;">
+                                        <% if value.nil? %>
+                                            <em class="text-muted">null</em>
+                                        <% elsif value.is_a?(Array) %>
+                                            <code class="text-success">[Array with <%= value.length %> items]</code>
+                                        <% elsif value.is_a?(Hash) %>
+                                            <code class="text-primary">{Object with <%= value.keys.length %> keys}</code>
+                                        <% else %>
+                                            <code class="text-light"><%= value %></code>
+                                        <% end %>
+                                    </span>
+                                </div>
+                            </div>
+                        <% end %>
+                    <% else %>
+                        <div class="text-muted text-center py-4">
+                            <i class="bi bi-file-x display-4"></i>
+                            <p class="mt-2">No configuration found</p>
+                        </div>
+                    <% end %>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Log Output -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card border-secondary">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h6 class="mb-0">Live Log Output</h6>
+                    <div>
+                        <button onclick="toggleAutoTail()" class="btn btn-outline-success btn-sm me-2" id="tailToggleBtn">
+                            <i class="bi bi-play-circle me-1"></i>Start Monitoring
+                        </button>
+                        <button onclick="clearLog()" class="btn btn-outline-warning btn-sm me-2">
+                            <i class="bi bi-trash me-1"></i>Clear
+                        </button>
+                        <button onclick="scrollToBottom()" class="btn btn-outline-light btn-sm">
+                            <i class="bi bi-arrow-down"></i> Bottom
+                        </button>
+                    </div>
+                </div>
+                <div class="card-body p-0">
+                    <pre id="jobLogContent" class="bg-dark text-light p-3 m-0 rounded-bottom" style="min-height: 400px; max-height: 600px; overflow-y: auto; font-size: 0.85rem; white-space: pre-wrap; word-wrap: break-word;"><code id="logCode">Click "Start Monitoring" to begin live log output...</code></pre>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Monitoring Status -->
+    <div class="mt-4">
+        <div class="card border-secondary">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="mb-0">Monitoring Status</h6>
+                        <small class="text-muted">Live updates every 2 seconds when active</small>
+                    </div>
+                    <div id="monitoringStatus">
+                        <span class="badge bg-secondary">Stopped</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+let tailInterval = null;
+let lastLogSize = 0;
+
+function toggleAutoTail() {
+    if (tailInterval) {
+        stopTail();
+    } else {
+        startTail();
+    }
+}
+
+function startTail() {
+    const btn = document.getElementById('tailToggleBtn');
+    const status = document.getElementById('monitoringStatus');
+    const jobStatus = document.getElementById('jobStatus');
+    
+    btn.innerHTML = '<i class="bi bi-stop-circle me-1"></i>Stop Monitoring';
+    btn.className = 'btn btn-outline-warning btn-sm me-2';
+    status.innerHTML = '<span class="badge bg-success">Monitoring Active</span>';
+    jobStatus.className = 'badge bg-warning text-dark fs-6';
+    jobStatus.innerHTML = '<i class="bi bi-arrow-clockwise me-1"></i>Tailing';
+    
+    // Reset
+    lastLogSize = 0;
+    
+    // Start polling
+    tailInterval = setInterval(fetchLogContent, 2000);
+    fetchLogContent(); // Initial load
+}
+
+function stopTail() {
+    const btn = document.getElementById('tailToggleBtn');
+    const status = document.getElementById('monitoringStatus');
+    const jobStatus = document.getElementById('jobStatus');
+    
+    if (tailInterval) {
+        clearInterval(tailInterval);
+        tailInterval = null;
+    }
+    
+    btn.innerHTML = '<i class="bi bi-play-circle me-1"></i>Start Monitoring';
+    btn.className = 'btn btn-outline-success btn-sm me-2';
+    status.innerHTML = '<span class="badge bg-secondary">Stopped</span>';
+    jobStatus.className = 'badge bg-success fs-6';
+    jobStatus.textContent = 'Monitoring';
+}
+
+function fetchLogContent() {
+    fetch('/api/job/<%= @filename %>/tail')
+        .then(response => {
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            return response.json();
+        })
+        .then(data => {
+            if (data.error) {
+                throw new Error(data.error);
+            }
+            
+            // Update only if there are changes
+            if (data.size > lastLogSize) {
+                document.getElementById('logCode').textContent = data.content || 'No log content available';
+                scrollToBottom();
+                flashContent();
+                lastLogSize = data.size;
+            }
+        })
+        .catch(error => {
+            console.error('Error fetching log:', error);
+            document.getElementById('logCode').textContent = `Error: ${error.message}`;
+        });
+}
+
+function clearLog() {
+    document.getElementById('logCode').textContent = '';
+}
+
+function scrollToBottom() {
+    const element = document.getElementById('jobLogContent');
+    element.scrollTop = element.scrollHeight;
+}
+
+function flashContent() {
+    const element = document.getElementById('jobLogContent');
+    element.style.backgroundColor = '#d1ecf1';
+    setTimeout(() => {
+        element.style.backgroundColor = '';
+    }, 300);
+}
+</script>

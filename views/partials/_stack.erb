@@ -1,0 +1,20 @@
+<div class="col-12">
+    <div class="card">
+        <!-- Stack Header -->
+        <div class="card-header stack-header d-flex justify-content-between align-items-center">
+            <h5 class="mb-0 text-white">
+                <i class="bi bi-archive me-2"></i><%= stack_name.upcase %>
+            </h5>
+            <span class="badge bg-light text-dark">
+                <%= jobs.length %> job<%= jobs.length != 1 ? 's' : '' %>
+            </span>
+        </div>
+        
+        <!-- Jobs List -->
+        <div class="card-body">
+            <% jobs.each_with_index do |job, index| %>
+                <%= erb :'partials/_job_item', locals: { job: job, is_last: index == jobs.length - 1 } %>
+            <% end %>
+        </div>
+    </div>
+</div>

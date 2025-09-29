@@ -145,17 +145,71 @@ body {
 }
 
 /* Button hover effects */
-#tailLogBtn:hover {
+.btn:hover {
     transform: translateY(-1px);
+    transition: all 0.2s ease;
+}
+
+.btn-outline-danger:hover {
+    box-shadow: 0 2px 8px rgba(220, 53, 69, 0.3);
+}
+
+.btn-outline-success:hover {
     box-shadow: 0 2px 8px rgba(40, 167, 69, 0.3);
 }
 
-#stopTailBtn:hover {
-    transform: translateY(-1px);
+.btn-outline-warning:hover {
     box-shadow: 0 2px 8px rgba(255, 193, 7, 0.3);
 }
 
+.btn-outline-info:hover {
+    box-shadow: 0 2px 8px rgba(23, 162, 184, 0.3);
+}
+
+.btn-outline-light:hover {
+    box-shadow: 0 2px 8px rgba(248, 249, 250, 0.3);
+}
+
 /* Smooth scrolling for log content */
-#logContentPre {
+#logContent, #jobLogContent {
     scroll-behavior: smooth;
+}
+
+/* Loading animation for refresh button */
+.refresh-btn.loading i {
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* Dedicated pages styling */
+.dedicated-page {
+    min-height: 100vh;
+}
+
+/* Flash effect for updated content */
+.flash-update {
+    background-color: #d1ecf1 !important;
+    transition: background-color 0.3s ease;
+}
+
+/* Card improvements */
+.card-hover:hover {
+    transform: translateY(-2px);
+    transition: transform 0.2s ease;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+/* Status badges */
+.badge {
+    font-size: 0.75rem;
+    padding: 0.35em 0.65em;
+}
+
+/* Navigation improvements */
+.nav-quick-links {
+    font-size: 0.9rem;
 }

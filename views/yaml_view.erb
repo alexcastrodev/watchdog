@@ -1,0 +1,136 @@
+<!-- Header -->
+<div class="header-section p-4 text-center rounded-top-4">
+    <div class="d-flex justify-content-between align-items-center">
+        <a href="/" class="btn btn-outline-light">
+            <i class="bi bi-arrow-left me-2"></i>Back to Dashboard
+        </a>
+        <h1 class="mb-0">
+            <i class="bi bi-file-earmark-code text-danger me-3"></i>
+            <%= @filename %>.yml
+        </h1>
+        <div class="btn-group">
+            <a href="/api/yaml/<%= @source %>/<%= @filename %>" 
+               download="<%= @filename %>.yml" 
+               class="btn btn-danger">
+                <i class="bi bi-download me-1"></i>Download
+            </a>
+            <% if @source == 'jobs' %>
+                <a href="/job/<%= @filename %>" class="btn btn-success">
+                    <i class="bi bi-play-circle me-1"></i>Monitor Job
+                </a>
+            <% end %>
+        </div>
+    </div>
+</div>
+
+<!-- Content -->
+<div class="p-4">
+    <!-- File Info -->
+    <div class="row g-3 mb-4">
+        <div class="col-md-4">
+            <div class="card border-secondary text-center h-100">
+                <div class="card-body">
+                    <h6 class="text-muted mb-2">File Size</h6>
+                    <h4 class="text-danger fw-bold"><%= (@file_data['size'] / 1024.0).round(1) %> KB</h4>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card border-secondary text-center h-100">
+                <div class="card-body">
+                    <h6 class="text-muted mb-2">Last Modified</h6>
+                    <p class="fw-bold"><%= @file_data['last_modified'] %></p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card border-secondary text-center h-100">
+                <div class="card-body">
+                    <h6 class="text-muted mb-2">Source</h6>
+                    <span class="badge bg-<%= @source == 'jobs' ? 'success' : 'info' %> fs-6">
+                        <%= @source.capitalize %>
+                    </span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Content Display -->
+    <% if @source == 'jobs' %>
+        <!-- Para jobs, mostrar parsed e raw content -->
+        <div class="row">
+            <div class="col-md-6">
+                <div class="card border-secondary h-100">
+                    <div class="card-header">
+                        <h6 class="mb-0">Parsed Content</h6>
+                    </div>
+                    <div class="card-body" style="max-height: 500px; overflow-y: auto;">
+                        <% if @file_data['parsed_content'] && !@file_data['parsed_content'].empty? %>
+                            <% @file_data['parsed_content'].each do |key, value| %>
+                                <div class="row py-2 border-bottom">
+                                    <div class="col-4">
+                                        <span class="property-key fw-bold"><%= key %>:</span>
+                                    </div>
+                                    <div class="col-8">
+                                        <span class="property-value path-text" style="word-break: break-all; font-size: 0.9rem;">
+                                            <% if value.nil? %>
+                                                <em class="text-muted">null</em>
+                                            <% elsif value.is_a?(TrueClass) || value.is_a?(FalseClass) %>
+                                                <code class="text-info"><%= value %></code>
+                                            <% elsif value.is_a?(Numeric) %>
+                                                <code class="text-warning"><%= value %></code>
+                                            <% elsif value.is_a?(Array) %>
+                                                <code class="text-success">[Array with <%= value.length %> items]</code>
+                                            <% elsif value.is_a?(Hash) %>
+                                                <code class="text-primary">{Object with <%= value.keys.length %> keys}</code>
+                                            <% else %>
+                                                <code class="text-light"><%= value %></code>
+                                            <% end %>
+                                        </span>
+                                    </div>
+                                </div>
+                            <% end %>
+                        <% else %>
+                            <div class="text-muted text-center py-4">
+                                <i class="bi bi-file-x display-4"></i>
+                                <p class="mt-2">No parsed content available</p>
+                            </div>
+                        <% end %>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="card border-secondary h-100">
+                    <div class="card-header">
+                        <h6 class="mb-0">Raw Content</h6>
+                    </div>
+                    <div class="card-body p-0">
+                        <pre class="bg-dark text-light p-3 m-0 rounded-bottom" style="max-height: 500px; overflow-y: auto; font-size: 0.85rem; white-space: pre-wrap; word-wrap: break-word;"><code><%= @file_data['raw_content'] %></code></pre>
+                    </div>
+                </div>
+            </div>
+        </div>
+    <% else %>
+        <!-- Para logs, mostrar apenas raw content em tela cheia -->
+        <div class="row">
+            <div class="col-12">
+                <div class="card border-secondary">
+                    <div class="card-header">
+                        <h6 class="mb-0">YAML Content</h6>
+                    </div>
+                    <div class="card-body p-0">
+                        <pre class="bg-dark text-light p-3 m-0 rounded-bottom" style="max-height: 600px; overflow-y: auto; font-size: 0.85rem; white-space: pre-wrap; word-wrap: break-word;"><code><%= @file_data['raw_content'] %></code></pre>
+                    </div>
+                </div>
+            </div>
+        </div>
+    <% end %>
+
+    <!-- Auto-refresh notice -->
+    <div class="mt-4">
+        <div class="alert alert-info">
+            <i class="bi bi-info-circle me-2"></i>
+            This page shows static content. Use the <strong>Monitor Job</strong> button for real-time updates.
+        </div>
+    </div>
+</div>

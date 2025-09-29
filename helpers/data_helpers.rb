@@ -89,12 +89,21 @@ module DataHelpers
     halt 404, { error: 'File not found' }.to_json unless File.exist?(yml_file)
 
     begin
-      content = YAML.load_file(yml_file)
       raw_content = File.read(yml_file)
+      
+      # Parse YAML content with error handling
+      parsed_content = begin
+        YAML.load_file(yml_file) || {}
+      rescue Psych::SyntaxError => e
+        { error: "Invalid YAML syntax: #{e.message}" }
+      end
+
+      # Ensure parsed_content is a Hash
+      parsed_content = {} unless parsed_content.is_a?(Hash)
 
       {
         name: filename,
-        content: content,
+        parsed_content: parsed_content,
         raw_content: raw_content,
         last_modified: File.mtime(yml_file).strftime('%Y-%m-%d %H:%M:%S'),
         size: File.size(yml_file),
@@ -147,16 +156,25 @@ module DataHelpers
     halt 404, { error: 'Job file not found' }.to_json unless File.exist?(job_file)
 
     begin
-      content = File.read(job_file)
-      parsed_content = YAML.load_file(job_file)
+      raw_content = File.read(job_file)
+      
+      # Parse YAML content with error handling
+      parsed_content = begin
+        YAML.load_file(job_file) || {}
+      rescue Psych::SyntaxError => e
+        { error: "Invalid YAML syntax: #{e.message}" }
+      end
+
+      # Ensure parsed_content is a Hash
+      parsed_content = {} unless parsed_content.is_a?(Hash)
 
       {
         name: filename,
-        content: content,
+        content: raw_content,
         parsed_content: parsed_content,
         last_modified: File.mtime(job_file).strftime('%Y-%m-%d %H:%M:%S'),
         size: File.size(job_file),
-        lines_count: content.lines.length,
+        lines_count: raw_content.lines.length,
         file_path: job_file
       }.to_json
     rescue => e

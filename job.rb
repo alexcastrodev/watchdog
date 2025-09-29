@@ -25,6 +25,15 @@ class Job
       }))
     end
 
+    def create_job
+      if File.exist?(flowfile)
+        job = Job.load(YAML.load_file(flowfile))
+        job.kill
+      end
+
+      save
+    end
+
     def kill
       Process.kill('TERM', pid.to_i) if executing?
       self.pid = nil

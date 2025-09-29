@@ -1,0 +1,50 @@
+<div class="d-flex align-items-center justify-content-between p-3 border-bottom <%= 'border-0' if is_last %> job-row">
+    <div class="flex-grow-1">
+        <div class="row align-items-center">
+            <div class="col-md-3">
+                <h6 class="mb-1 text-truncate-custom" title="<%= job[:name] %>">
+                    <i class="bi bi-box-seam me-2 text-primary"></i>
+                    <%= job[:name] %>
+                </h6>
+                <span class="badge">
+                    <%= job[:status] %>
+                </span>
+            </div>
+            <div class="col-md-6">
+                <% if job[:properties] && !job[:properties].empty? %>
+                    <div class="row g-1">
+                        <% job[:properties].first(2).each do |key, value| %>
+                            <div class="col-12">
+                                <small class="text-muted">
+                                    <span class="property-key"><%= key %>:</span>
+                                    <span class="property-value path-text ms-1" title="<%= value %>">
+                                        <%= truncate_text(value.to_s, 50) %>
+                                    </span>
+                                </small>
+                            </div>
+                        <% end %>
+                        <% if job[:properties].size > 2 %>
+                            <div class="col-12">
+                                <small class="text-muted">... and <%= job[:properties].size - 2 %> more properties</small>
+                            </div>
+                        <% end %>
+                    </div>
+                <% end %>
+            </div>
+            <div class="col-md-3 text-end">
+                <div class="btn-group" role="group">
+                    <% if job[:log] %>
+                        <a href="/log/<%= job[:name] %>" class="btn btn-outline-danger btn-sm">
+                            <i class="bi bi-file-earmark-text me-1"></i>Log
+                        </a>
+                    <% end %>
+                    <% if job[:yml_file] %>
+                        <a href="/yaml/logs/<%= job[:name] %>" class="btn btn-outline-light btn-sm">
+                            <i class="bi bi-file-code me-1"></i>YAML
+                        </a>
+                    <% end %>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

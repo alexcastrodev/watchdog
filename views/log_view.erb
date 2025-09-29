@@ -1,0 +1,165 @@
+<!-- Header -->
+<div class="header-section p-4 text-center rounded-top-4">
+    <div class="d-flex justify-content-between align-items-center">
+        <a href="/" class="btn btn-outline-light">
+            <i class="bi bi-arrow-left me-2"></i>Back to Dashboard
+        </a>
+        <h1 class="mb-0">
+            <i class="bi bi-file-earmark-text text-info me-3"></i>
+            <%= @filename %>.log
+        </h1>
+        <div class="btn-group">
+            <a href="/api/log/<%= @filename %>" 
+               download="<%= @filename %>.log" 
+               class="btn btn-danger">
+                <i class="bi bi-download me-1"></i>Download
+            </a>
+            <button onclick="refreshLog()" class="btn btn-success" id="refreshBtn">
+                <i class="bi bi-arrow-clockwise me-1"></i>Refresh
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Content -->
+<div class="p-4">
+    <!-- File Info -->
+    <div class="row g-3 mb-4">
+        <div class="col-md-4">
+            <div class="card border-secondary text-center h-100">
+                <div class="card-body">
+                    <h6 class="text-muted mb-2">File Size</h6>
+                    <h4 class="text-info fw-bold" id="fileSize"><%= (@file_data['size'] / 1024.0).round(1) %> KB</h4>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card border-secondary text-center h-100">
+                <div class="card-body">
+                    <h6 class="text-muted mb-2">Last Modified</h6>
+                    <p class="fw-bold" id="lastModified"><%= @file_data['last_modified'] %></p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card border-secondary text-center h-100">
+                <div class="card-body">
+                    <h6 class="text-muted mb-2">Lines</h6>
+                    <h4 class="text-success fw-bold" id="linesCount"><%= @file_data['content'].lines.length %></h4>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Log Content -->
+    <div class="card border-secondary">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h6 class="mb-0">Log Content</h6>
+            <div>
+                <button onclick="scrollToTop()" class="btn btn-outline-light btn-sm me-2">
+                    <i class="bi bi-arrow-up"></i> Top
+                </button>
+                <button onclick="scrollToBottom()" class="btn btn-outline-light btn-sm">
+                    <i class="bi bi-arrow-down"></i> Bottom
+                </button>
+            </div>
+        </div>
+        <div class="card-body p-0">
+            <pre id="logContent" class="bg-dark text-light p-3 m-0 rounded-bottom" style="max-height: 600px; overflow-y: auto; font-size: 0.85rem; white-space: pre-wrap; word-wrap: break-word;"><code><%= @file_data['content'] %></code></pre>
+        </div>
+    </div>
+
+    <!-- Auto-refresh controls -->
+    <div class="mt-4">
+        <div class="card border-secondary">
+            <div class="card-body">
+                <h6 class="mb-3">Auto-refresh</h6>
+                <div class="d-flex gap-3 align-items-center">
+                    <button onclick="startAutoRefresh()" class="btn btn-outline-success" id="startAutoBtn">
+                        <i class="bi bi-play-circle me-1"></i>Start Auto-refresh
+                    </button>
+                    <button onclick="stopAutoRefresh()" class="btn btn-outline-warning" id="stopAutoBtn" style="display: none;">
+                        <i class="bi bi-stop-circle me-1"></i>Stop Auto-refresh
+                    </button>
+                    <select id="refreshInterval" class="form-select" style="width: auto;">
+                        <option value="1000">Every 1 second</option>
+                        <option value="2000" selected>Every 2 seconds</option>
+                        <option value="5000">Every 5 seconds</option>
+                        <option value="10000">Every 10 seconds</option>
+                    </select>
+                    <span id="autoRefreshStatus" class="text-muted"></span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+let autoRefreshInterval = null;
+
+function refreshLog() {
+    const btn = document.getElementById('refreshBtn');
+    const icon = btn.querySelector('i');
+    
+    // Adiciona animação
+    btn.disabled = true;
+    icon.classList.add('bi-arrow-clockwise');
+    icon.style.animation = 'spin 1s linear infinite';
+    
+    fetch('/api/log/<%= @filename %>')
+        .then(response => response.json())
+        .then(data => {
+            document.getElementById('logContent').querySelector('code').textContent = data.content;
+            document.getElementById('fileSize').textContent = (data.size / 1024.0).toFixed(1) + ' KB';
+            document.getElementById('lastModified').textContent = data.last_modified;
+            document.getElementById('linesCount').textContent = data.content.split('\n').length;
+        })
+        .catch(error => {
+            console.error('Error refreshing log:', error);
+        })
+        .finally(() => {
+            btn.disabled = false;
+            icon.style.animation = '';
+        });
+}
+
+function startAutoRefresh() {
+    const interval = document.getElementById('refreshInterval').value;
+    
+    if (autoRefreshInterval) {
+        clearInterval(autoRefreshInterval);
+    }
+    
+    autoRefreshInterval = setInterval(refreshLog, parseInt(interval));
+    
+    document.getElementById('startAutoBtn').style.display = 'none';
+    document.getElementById('stopAutoBtn').style.display = 'inline-block';
+    document.getElementById('autoRefreshStatus').innerHTML = 
+        '<i class="bi bi-arrow-clockwise text-success me-1"></i>Auto-refreshing...';
+}
+
+function stopAutoRefresh() {
+    if (autoRefreshInterval) {
+        clearInterval(autoRefreshInterval);
+        autoRefreshInterval = null;
+    }
+    
+    document.getElementById('startAutoBtn').style.display = 'inline-block';
+    document.getElementById('stopAutoBtn').style.display = 'none';
+    document.getElementById('autoRefreshStatus').innerHTML = '';
+}
+
+function scrollToTop() {
+    document.getElementById('logContent').scrollTop = 0;
+}
+
+function scrollToBottom() {
+    const element = document.getElementById('logContent');
+    element.scrollTop = element.scrollHeight;
+}
+
+// CSS para animação
+const style = document.createElement('style');
+style.textContent = '@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }';
+document.head.appendChild(style);
+</script>
