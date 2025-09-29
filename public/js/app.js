@@ -151,15 +151,17 @@ async function viewYamlFileWithTail(source, filename) {
 }
 
 // Global variables for tail functionality
-let tailEventSource = null;
+let tailPollingInterval = null;
 let currentTailFilename = null;
 let tailLogElement = null;
 
 // Global variables for YAML tail functionality
-let tailYamlEventSource = null;
+let tailYamlPollingInterval = null;
 let currentTailYamlFilename = null;
 let currentTailYamlSource = null;
 let tailYamlElement = null;
+let lastLogSize = 0;
+let lastLogModified = null;
 
 // Log file viewer function
 async function viewLogFile(filename) {
@@ -261,9 +263,9 @@ async function viewLogFile(filename) {
   }
 }
 
-// Start tail -f functionality
+// Start tail -f functionality with polling
 function startTailLog() {
-  if (!currentTailFilename || tailEventSource) return;
+  if (!currentTailFilename || tailPollingInterval) return;
   
   const tailBtn = document.getElementById('tailLogBtn');
   const stopTailBtn = document.getElementById('stopTailBtn');
@@ -276,15 +278,19 @@ function startTailLog() {
   tailStatus.style.display = 'inline-block';
   logContentPre.classList.add('tailing');
   
-  // Clear existing content to start fresh
-  tailLogElement.textContent = '';
+  // Reset tracking variables
+  lastLogSize = 0;
+  lastLogModified = null;
   
-  // Create EventSource for Server-Sent Events
-  tailEventSource = new EventSource(`/api/log/${currentTailFilename}/tail`);
-  
-  tailEventSource.onmessage = function(event) {
+  // Function to fetch log content
+  const fetchLogContent = async () => {
     try {
-      const data = JSON.parse(event.data);
+      const response = await fetch(`/api/log/${currentTailFilename}/tail`);
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+      
+      const data = await response.json();
       
       if (data.error) {
         console.error('Tail error:', data.error);
@@ -293,33 +299,34 @@ function startTailLog() {
         return;
       }
       
-      if (data.type === 'initial') {
-        // Replace content with initial tail content
+      // Check if content has changed
+      if (data.size !== lastLogSize || data.last_modified !== lastLogModified) {
         tailLogElement.textContent = data.content;
-        updateLogStats(data.size, data.content);
-      } else if (data.type === 'update') {
-        // Append new content
-        tailLogElement.textContent += data.content;
         updateLogStats(data.size, data.content);
         
         // Auto-scroll to bottom
         logContentPre.scrollTop = logContentPre.scrollHeight;
         
-        // Flash effect for new content
-        flashNewContent();
+        // Flash effect for new content (only if not first load)
+        if (lastLogSize > 0) {
+          flashNewContent();
+        }
+        
+        lastLogSize = data.size;
+        lastLogModified = data.last_modified;
       }
       
-    } catch (e) {
-      console.error('Error parsing tail data:', e);
-      showTailError('Error parsing server response');
+    } catch (error) {
+      console.error('Error fetching log content:', error);
+      showTailError(`Error fetching content: ${error.message}`);
     }
   };
   
-  tailEventSource.onerror = function(event) {
-    console.error('EventSource error:', event);
-    showTailError('Connection to server lost');
-    stopTailLog();
-  };
+  // Initial load
+  fetchLogContent();
+  
+  // Set up polling
+  tailPollingInterval = setInterval(fetchLogContent, 1000); // Poll every 1 second
 }
 
 // Show error message in tail status
@@ -344,9 +351,9 @@ function flashNewContent() {
 
 // Stop tail -f functionality
 function stopTailLog() {
-  if (tailEventSource) {
-    tailEventSource.close();
-    tailEventSource = null;
+  if (tailPollingInterval) {
+    clearInterval(tailPollingInterval);
+    tailPollingInterval = null;
   }
   
   const tailBtn = document.getElementById('tailLogBtn');
@@ -369,6 +376,10 @@ function stopTailLog() {
     statusElement.innerHTML = 'Static View';
     statusElement.className = 'fw-bold text-light';
   }
+  
+  // Reset tracking variables
+  lastLogSize = 0;
+  lastLogModified = null;
 }
 
 // Update log statistics during tail
@@ -386,9 +397,9 @@ function updateLogStats(size, newContent) {
   }
 }
 
-// Start tail -f functionality for YAML files
+// Start tail -f functionality for YAML files with polling
 function startTailYaml() {
-  if (!currentTailYamlFilename || !currentTailYamlSource || tailYamlEventSource) return;
+  if (!currentTailYamlFilename || !currentTailYamlSource || tailYamlPollingInterval) return;
   
   const tailBtn = document.getElementById('tailYamlBtn');
   const stopTailBtn = document.getElementById('stopTailYamlBtn');
@@ -401,18 +412,26 @@ function startTailYaml() {
   tailStatus.style.display = 'inline-block';
   yamlContentPre.classList.add('tailing');
   
-  // Create EventSource for Server-Sent Events (only jobs support tail for now)
-  if (currentTailYamlSource === 'jobs') {
-    tailYamlEventSource = new EventSource(`/api/job/${currentTailYamlFilename}/tail`);
-  } else {
+  // Only jobs support tail for now
+  if (currentTailYamlSource !== 'jobs') {
     showTailYamlError('Tail functionality is only available for job files');
     stopTailYaml();
     return;
   }
   
-  tailYamlEventSource.onmessage = function(event) {
+  // Reset tracking variables
+  lastLogSize = 0;
+  lastLogModified = null;
+  
+  // Function to fetch job log content
+  const fetchJobLogContent = async () => {
     try {
-      const data = JSON.parse(event.data);
+      const response = await fetch(`/api/job/${currentTailYamlFilename}/tail`);
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+      
+      const data = await response.json();
       
       if (data.error) {
         console.error('Job tail error:', data.error);
@@ -421,14 +440,14 @@ function startTailYaml() {
         return;
       }
       
-      if (data.type === 'initial') {
-        // Clear existing content and show job log content
-        clearYamlContentForLogTail();
+      // Check if content has changed
+      if (data.size !== lastLogSize || data.last_modified !== lastLogModified) {
+        // Clear existing content and show job log content (first time only)
+        if (lastLogSize === 0) {
+          clearYamlContentForLogTail();
+        }
+        
         tailYamlElement.textContent = data.content;
-        updateJobLogStats(data.size, data.job_name, data.log_file);
-      } else if (data.type === 'update') {
-        // Append new log content
-        tailYamlElement.textContent += data.content;
         updateJobLogStats(data.size, data.job_name, data.log_file);
         
         // Auto-scroll to bottom of job log section
@@ -437,28 +456,33 @@ function startTailYaml() {
           jobLogContent.scrollTop = jobLogContent.scrollHeight;
         }
         
-        // Flash effect for changes
-        flashJobLogContent();
+        // Flash effect for changes (only if not first load)
+        if (lastLogSize > 0) {
+          flashJobLogContent();
+        }
+        
+        lastLogSize = data.size;
+        lastLogModified = data.last_modified;
       }
       
-    } catch (e) {
-      console.error('Error parsing job tail data:', e);
-      showTailYamlError('Error parsing server response');
+    } catch (error) {
+      console.error('Error fetching job log content:', error);
+      showTailYamlError(`Error fetching content: ${error.message}`);
     }
   };
   
-  tailYamlEventSource.onerror = function(event) {
-    console.error('YAML EventSource error:', event);
-    showTailYamlError('Connection to server lost');
-    stopTailYaml();
-  };
+  // Initial load
+  fetchJobLogContent();
+  
+  // Set up polling
+  tailYamlPollingInterval = setInterval(fetchJobLogContent, 1000); // Poll every 1 second
 }
 
 // Stop tail -f functionality for YAML files
 function stopTailYaml() {
-  if (tailYamlEventSource) {
-    tailYamlEventSource.close();
-    tailYamlEventSource = null;
+  if (tailYamlPollingInterval) {
+    clearInterval(tailYamlPollingInterval);
+    tailYamlPollingInterval = null;
   }
   
   const tailBtn = document.getElementById('tailYamlBtn');
@@ -490,6 +514,10 @@ function stopTailYaml() {
     statusElement.innerHTML = 'Static View';
     statusElement.className = 'fw-bold text-light';
   }
+  
+  // Reset tracking variables
+  lastLogSize = 0;
+  lastLogModified = null;
 }
 
 // Update YAML statistics during tail

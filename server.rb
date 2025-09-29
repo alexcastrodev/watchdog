@@ -42,90 +42,46 @@ get '/api/log/:filename' do
     get_log_file_content(params[:filename])
 end
 
-# Server-Sent Events endpoint for tail -f functionality for job logs
+# Polling endpoint for log file content
 get '/api/log/:filename/tail' do
-    content_type 'text/event-stream'
-    cache_control :no_cache
-    headers 'Connection' => 'keep-alive',
-            'Access-Control-Allow-Origin' => '*'
+    content_type :json
     
     filename = params[:filename]
     logs_dir = File.join(settings.root, 'logs')
     log_file = File.join(logs_dir, "#{filename}.log")
     
-    halt 404, "data: {\"error\": \"Log file not found\"}\n\n" unless File.exist?(log_file)
+    halt 404, { error: "Log file not found" }.to_json unless File.exist?(log_file)
     
-    stream :keep_open do |out|
-      begin
-        # Get initial file size and position
-        initial_size = File.size(log_file)
-        position = [initial_size - 5000, 0].max # Start from last 5KB or beginning
-        
-        File.open(log_file, 'r') do |file|
-          file.seek(position)
-          initial_content = file.read
-          data = {
-            type: 'initial',
-            content: initial_content,
-            size: File.size(log_file),
-            position: file.pos
-          }
-          position = file.pos
-          out << "data: #{data.to_json}\n\n"
-          
-          # Keep checking for new content
-          loop do
-            sleep 0.5 # Check every 500ms
-            
-            unless File.exist?(log_file)
-              error_data = { error: "Log file no longer exists" }
-              out << "data: #{error_data.to_json}\n\n"
-              break
-            end
-            
-            current_size = File.size(log_file)
-            if current_size > position
-              file.seek(position)
-              new_content = file.read
-              if new_content && !new_content.empty?
-                position = file.pos
-                update_data = {
-                  type: 'update',
-                  content: new_content,
-                  size: current_size,
-                  position: position
-                }
-                out << "data: #{update_data.to_json}\n\n"
-              end
-            end
-          end
-        end
-      rescue => e
-        error_data = { error: "Error reading log file: #{e.message}" }
-        out << "data: #{error_data.to_json}\n\n"
-      end
+    begin
+      content = File.read(log_file)
+      
+      {
+        content: content,
+        size: File.size(log_file),
+        last_modified: File.mtime(log_file).strftime('%Y-%m-%d %H:%M:%S'),
+        lines_count: content.lines.length
+      }.to_json
+    rescue => e
+      halt 500, { error: "Error reading log file: #{e.message}" }.to_json
     end
 end
 
-# Server-Sent Events endpoint for tail -f functionality for job log files
+# Polling endpoint for job log file content
 get '/api/job/:filename/tail' do
-    content_type 'text/event-stream'
-    cache_control :no_cache
-    headers 'Connection' => 'keep-alive',
-            'Access-Control-Allow-Origin' => '*'
+    content_type :json
     
     filename = params[:filename]
     jobs_dir = File.join(settings.root, 'jobs')
     job_file = File.join(jobs_dir, "#{filename}.yml")
     
-    halt 404, "data: {\"error\": \"Job file not found\"}\n\n" unless File.exist?(job_file)
+    halt 404, { error: "Job file not found" }.to_json unless File.exist?(job_file)
     
     # Parse job file to get log file path
     begin
       job_data = YAML.load_file(job_file)
       log_file_path = job_data[:log_file] || job_data['log_file']
       
-      halt 404, "data: {\"error\": \"No log file specified in job\"}\n\n" unless log_file_path
+      halt 404, { error: "No log file specified in job" }.to_json unless log_file_path
       
       # Handle both absolute and relative paths
       if File.absolute_path?(log_file_path)
@@ -134,65 +90,25 @@ get '/api/job/:filename/tail' do
         log_file = File.join(settings.root, 'logs', log_file_path)
       end
       
-      halt 404, "data: {\"error\": \"Log file not found: #{log_file}\"}\n\n" unless File.exist?(log_file)
+      halt 404, { error: "Log file not found: #{log_file}" }.to_json unless File.exist?(log_file)
       
     rescue => e
-      halt 500, "data: {\"error\": \"Error reading job file: #{e.message}\"}\n\n"
+      halt 500, { error: "Error reading job file: #{e.message}" }.to_json
     end
     
-    stream :keep_open do |out|
-      begin
-        # Get initial file size and position
-        initial_size = File.size(log_file)
-        position = [initial_size - 5000, 0].max # Start from last 5KB or beginning
-        
-        File.open(log_file, 'r') do |file|
-          file.seek(position)
-          initial_content = file.read
-          data = {
-            type: 'initial',
-            content: initial_content,
-            size: File.size(log_file),
-            position: file.pos,
-            job_name: filename,
-            log_file: log_file
-          }
-          position = file.pos
-          out << "data: #{data.to_json}\n\n"
-          
-          # Keep checking for new content
-          loop do
-            sleep 0.5 # Check every 500ms
-            
-            unless File.exist?(log_file)
-              error_data = { error: "Log file no longer exists" }
-              out << "data: #{error_data.to_json}\n\n"
-              break
-            end
-            
-            current_size = File.size(log_file)
-            if current_size > position
-              file.seek(position)
-              new_content = file.read
-              if new_content && !new_content.empty?
-                position = file.pos
-                update_data = {
-                  type: 'update',
-                  content: new_content,
-                  size: current_size,
-                  position: position,
-                  job_name: filename,
-                  log_file: log_file
-                }
-                out << "data: #{update_data.to_json}\n\n"
-              end
-            end
-          end
-        end
-      rescue => e
-        error_data = { error: "Error reading log file: #{e.message}" }
-        out << "data: #{error_data.to_json}\n\n"
-      end
+    begin
+      content = File.read(log_file)
+      
+      {
+        content: content,
+        size: File.size(log_file),
+        last_modified: File.mtime(log_file).strftime('%Y-%m-%d %H:%M:%S'),
+        lines_count: content.lines.length,
+        job_name: filename,
+        log_file: log_file
+      }.to_json
+    rescue => e
+      halt 500, { error: "Error reading log file: #{e.message}" }.to_json
     end
 end
 
