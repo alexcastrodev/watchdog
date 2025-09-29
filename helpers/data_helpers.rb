@@ -6,7 +6,7 @@ module DataHelpers
     logs_dir = File.join(settings.root, 'logs')
     entries = build_log_entries(logs_dir)
     
-    entries.group_by { |e| e[:name].split('-').first }
+    entries.group_by { |e| e[:name].split('-').last }
            .transform_values { |items| items.sort_by { |item| item[:timestamp] }.reverse }
            .map { |stack, items| { stack => items } }
   end
