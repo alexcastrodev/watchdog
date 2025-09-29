@@ -13,14 +13,14 @@
     %>
 
     <!-- Navigation Tabs -->
-    <ul class="nav nav-tabs mb-4" id="mainTabs" role="tablist">
+    <ul class="nav nav-tabs mb-4" id="mainTabs" role="tablist" data-controller="tab">
         <li class="nav-item" role="presentation">
-            <button class="nav-link active" id="jobs-tab" data-bs-toggle="tab" data-bs-target="#jobs" type="button" role="tab">
+            <button class="nav-link active" id="jobs-tab" data-bs-toggle="tab" data-bs-target="#jobs" type="button" role="tab" data-action="click->tab#switchTab">
                 <i class="bi bi-gear"></i> Jobs
             </button>
         </li>
         <li class="nav-item" role="presentation">
-            <button class="nav-link" id="logs-tab" data-bs-toggle="tab" data-bs-target="#logs" type="button" role="tab">
+            <button class="nav-link" id="logs-tab" data-bs-toggle="tab" data-bs-target="#logs" type="button" role="tab" data-action="click->tab#switchTab">
                 <i class="bi bi-file-text"></i> Logs
             </button>
         </li>
