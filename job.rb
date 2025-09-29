@@ -11,7 +11,8 @@ class Job
       running: "running",
       done: "done",
       error: "error",
-      killed: "killed"
+      killed: "killed",
+      done_with_error: "done_with_error"
     }
 
     def save

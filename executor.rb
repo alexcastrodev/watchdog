@@ -28,7 +28,7 @@ module Orchestrator
         cmd = "cd #{dir} && git pull && ./build.sh >> #{@job.path}.log"
   
         @pid = spawn_with_callback(cmd, lambda do |pid, success, output|
-          @job.status = success ? Job::STATUS[:done] : Job::STATUS[:error]
+          @job.status = success ? Job::STATUS[:done] : Job::STATUS[:done_with_error]
           @job.pid = nil
           @job.save
   
@@ -41,7 +41,8 @@ module Orchestrator
       else
         @job.status = Job::STATUS[:error]
         @job.save
-        File.write(@job.path + ".log", "Directory #{dir} does not exist.\n")
+
+        File.write(@job.path + ".log", "Directory #{dir} does not exist.\n", mode: "a")
         FileUtils.mv(@file, "#{@job.path}.yml")
       end
     end
