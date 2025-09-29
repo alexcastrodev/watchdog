@@ -75,12 +75,19 @@ async function viewYamlFile(source, filename) {
               </div>
           </div>
           
-          <div class="mb-4">
+          <div class="mb-4" id="jobLogSection" style="display: none;">
               <h6 class="border-bottom pb-2 mb-3">
-                  <i class="bi bi-list-ul"></i> Parsed Content
+                  <i class="bi bi-terminal"></i> Job Log Content
                   <span id="tailYamlStatus" class="badge bg-secondary ms-2" style="display: none;">
                       <i class="bi bi-circle-fill text-success blink"></i> Live Tail
                   </span>
+              </h6>
+              <pre class="bg-dark text-light p-3 rounded" id="jobLogContent" style="max-height: 400px; overflow-y: auto; font-size: 0.85rem; white-space: pre-wrap; word-wrap: break-word;"><code id="jobLogCode"></code></pre>
+          </div>
+          
+          <div class="mb-4">
+              <h6 class="border-bottom pb-2 mb-3">
+                  <i class="bi bi-list-ul"></i> Parsed Content
               </h6>
               <div class="bg-secondary bg-opacity-25 p-3 rounded" id="yamlParsedContent">
                   ${formatYamlContent(data.content)}
@@ -95,7 +102,7 @@ async function viewYamlFile(source, filename) {
           </div>
       `;
       
-      // Store reference to yaml element for tail
+      // Store reference to yaml element for tail (will be updated if job log tail is used)
       tailYamlElement = document.getElementById('yamlContentCode');
       
       // Show tail button only for jobs (not logs)
@@ -424,14 +431,14 @@ function startTailYaml() {
         tailYamlElement.textContent += data.content;
         updateJobLogStats(data.size, data.job_name, data.log_file);
         
-        // Auto-scroll to bottom
-        const yamlContentPre = document.getElementById('yamlContentPre');
-        if (yamlContentPre) {
-          yamlContentPre.scrollTop = yamlContentPre.scrollHeight;
+        // Auto-scroll to bottom of job log section
+        const jobLogContent = document.getElementById('jobLogContent');
+        if (jobLogContent) {
+          jobLogContent.scrollTop = jobLogContent.scrollHeight;
         }
         
         // Flash effect for changes
-        flashYamlContent();
+        flashJobLogContent();
       }
       
     } catch (e) {
@@ -458,15 +465,24 @@ function stopTailYaml() {
   const stopTailBtn = document.getElementById('stopTailYamlBtn');
   const tailStatus = document.getElementById('tailYamlStatus');
   const yamlContentPre = document.getElementById('yamlContentPre');
+  const jobLogSection = document.getElementById('jobLogSection');
   
   // Update UI
   tailBtn.style.display = 'inline-block';
   stopTailBtn.style.display = 'none';
   tailStatus.style.display = 'none';
   
+  // Hide job log section when stopping tail
+  if (jobLogSection) {
+    jobLogSection.style.display = 'none';
+  }
+  
   if (yamlContentPre) {
     yamlContentPre.classList.remove('tailing');
   }
+  
+  // Restore original tailYamlElement reference
+  tailYamlElement = document.getElementById('yamlContentCode');
   
   // Reset status to static
   const statusElement = document.getElementById('yamlStatus');
@@ -537,17 +553,19 @@ function updateYamlParsedContent(parsedContent) {
 
 // Clear YAML content area and prepare for log tail display
 function clearYamlContentForLogTail() {
-  const parsedContentDiv = document.getElementById('yamlParsedContent');
-  if (parsedContentDiv) {
-    parsedContentDiv.innerHTML = `
-      <div class="alert alert-info" role="alert">
-        <i class="bi bi-info-circle me-2"></i>
-        <strong>Job Log Mode:</strong> Displaying live log content from the job's log file.
-        <br>
-        <small class="text-muted">The parsed YAML content is hidden while tailing the job log.</small>
-      </div>
-    `;
+  const jobLogSection = document.getElementById('jobLogSection');
+  const jobLogCode = document.getElementById('jobLogCode');
+  
+  if (jobLogSection) {
+    jobLogSection.style.display = 'block';
   }
+  
+  if (jobLogCode) {
+    jobLogCode.textContent = '';
+  }
+  
+  // Update the reference to point to job log element
+  tailYamlElement = jobLogCode;
 }
 
 // Update statistics for job log tail
@@ -589,6 +607,17 @@ function flashYamlContent() {
     yamlContentPre.style.borderLeftColor = '#28a745';
     setTimeout(() => {
       yamlContentPre.style.borderLeftColor = '';
+    }, 200);
+  }
+}
+
+// Flash effect for job log content changes
+function flashJobLogContent() {
+  const jobLogContent = document.getElementById('jobLogContent');
+  if (jobLogContent) {
+    jobLogContent.style.borderLeftColor = '#28a745';
+    setTimeout(() => {
+      jobLogContent.style.borderLeftColor = '';
     }, 200);
   }
 }
