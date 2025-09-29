@@ -20,33 +20,21 @@ module Orchestrator
 
     def process
       dir = "#{ENV['PROJECTS_PATH']}/#{@job.name}"
-      @job.path = "#{File.expand_path(File.dirname(__FILE__))}/logs/#{@job.name}-#{Time.now.strftime("%Y%m%d%H%M%S")}"
+      @job.path = "#{File.expand_path(File.dirname(__FILE__))}/logs/#{Time.now.strftime("%Y%m%d%H%M%S")}-#{@job.name}"
       @job.log = "#{@job.path}.log"
       @job.save
 
-      debug("Start job #{@job.name}")
+      debug("Start job #{@job.name} with path #{@job.path} and log #{@job.log}")
 
       if Dir.exist?(dir)
         cmd = "cd #{dir} && git pull && ./build.sh"
-  
-        @pid = spawn_with_callback(cmd, lambda do |pid, success, output|
-          @job.status = success ? Job::STATUS[:done] : Job::STATUS[:done_with_error]
-          @job.pid = nil
-          @job.save
-          
-          FileUtils.mv(@file, "#{@job.path}.yml")
-          debug("Finished: #{@file} with #{@job.path}")
-        end)
-  
-        @job.status = Job::STATUS[:running]
-        @job.pid = @pid
-        @job.save
+        spawn_process(cmd)
       else
         @job.status = Job::STATUS[:error]
         @job.save
 
-        File.write(@job.path + ".log", "Directory #{dir} does not exist.\n", mode: "a")
         FileUtils.mv(@file, "#{@job.path}.yml")
+        debug("Finished with error: Dir.exist?(dir) result is #{Dir.exist?(dir)} to file #{@file}")
       end
     end
 
@@ -57,25 +45,31 @@ module Orchestrator
       File.write("tmp/development.log", "[#{Time.now.strftime("%Y-%m-%d %H:%M:%S")}] #{content}\n", mode: "a")
     end
 
-    def spawn_with_callback(cmd, callback)
+    def spawn_process(cmd)
       r, w = IO.pipe
 
       pid = Process.spawn(cmd, out: w, err: w)
-      w.close
+      @job.status = Job::STATUS[:running]
+      @job.pid = pid
+      @job.save
       debug("Spawn PID: #{pid}")
 
-      Thread.new do
-        output = r.read
-        _, status = Process.wait2(pid)
-        success = status.success?
-        debug("Executed process with status: #{status.success? ? "success" : "error"}")
+      w.close
 
-        callback.call(pid, success, output) if callback
-      ensure
-        r.close
-      end
+      output = r.read
+      _, status = Process.wait2(pid)
 
-      pid
+      debug("Executed process with status: #{status.success? ? "success" : "error"}")
+      @job.status = status.success? ? Job::STATUS[:done] : Job::STATUS[:done_with_error]
+      @job.pid = nil
+      @job.save
+
+      FileUtils.mv(@file, "#{@job.path}.yml")
+      File.write(@job.log, output, mode: "a")
+      debug("Finished: #{@file} with #{@job.path}")
+
+      debug("Closing read pipe")
+      r.close
     end
   end
 end
