@@ -62,16 +62,16 @@ sudo systemctl stop watchdog.service
 
 # Screenshots
 
-![Dashboard](./.github/dashboard.png)
+![Dashboard](./.github/dashboard.jpg)
 
 ![Dashboard](./.github/jobs.jpg)
 
-![Dashboard](./.github/job-details.png)
+![Dashboard](./.github/job-details.jpg)
 
-![Dashboard](./.github/job-details2.png)
+![Dashboard](./.github/job-details2.jpg)
 
-![Dashboard](./.github/job-done.png)
+![Dashboard](./.github/job-done.jpg)
 
-![Dashboard](./.github/logs.png)
+![Dashboard](./.github/logs.jpg)
 
-![Dashboard](./.github/log-page.png)
+![Dashboard](./.github/log-page.jpg)
