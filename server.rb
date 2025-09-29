@@ -122,45 +122,32 @@ get '/api/job/:filename/tail' do
     
     stream :keep_open do |out|
       begin
-        # Get initial file size and modification time
-        initial_size = File.size(job_file)
-        last_modified = File.mtime(job_file)
-        
-        # Send initial content
-        content = File.read(job_file)
-        data = {
-          type: 'initial',
-          content: content,
-          size: initial_size,
-          last_modified: last_modified.strftime('%Y-%m-%d %H:%M:%S')
-        }
-        out << "data: #{data.to_json}\n\n"
-        
-        loop do
-          sleep 5
-          
-          unless File.exist?(job_file)
-            error_data = { error: "Job file no longer exists" }
-            out << "data: #{error_data.to_json}\n\n"
-            break
-          end
-          
-          current_modified = File.mtime(job_file)
-          
-          if current_modified > last_modified
-            # File has been modified
-            new_content = File.read(job_file)
-            last_modified = current_modified
-            
-            update_data = {
-              type: 'update',
-              content: new_content,
-              size: File.size(job_file),
-              last_modified: current_modified.strftime('%Y-%m-%d %H:%M:%S')
-            }
-            out << "data: #{update_data.to_json}\n\n"
-          end
+      # Send initial content
+      content = File.read(job_file)
+      data = {
+        type: 'initial',
+        content: content,
+        size: File.size(job_file)
+      }
+      out << "data: #{data.to_json}\n\n"
+
+      loop do
+        sleep 5
+
+        unless File.exist?(job_file)
+        error_data = { error: "Job file no longer exists" }
+        out << "data: #{error_data.to_json}\n\n"
+        break
         end
+
+        new_content = File.read(job_file)
+        update_data = {
+          type: 'update',
+          content: new_content,
+          size: File.size(job_file)
+        }
+        out << "data: #{update_data.to_json}\n\n"
+      end
       rescue => e
         error_data = { error: "Error reading job file: #{e.message}" }
         out << "data: #{error_data.to_json}\n\n"
