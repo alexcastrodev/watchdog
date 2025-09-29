@@ -408,29 +408,34 @@ function startTailYaml() {
       const data = JSON.parse(event.data);
       
       if (data.error) {
-        console.error('YAML tail error:', data.error);
+        console.error('Job tail error:', data.error);
         showTailYamlError(data.error);
         stopTailYaml();
         return;
       }
       
       if (data.type === 'initial') {
-        // Replace content with initial content
+        // Clear existing content and show job log content
+        clearYamlContentForLogTail();
         tailYamlElement.textContent = data.content;
-        updateYamlStats(data.size, data.last_modified);
-        updateYamlParsedContent(data.content);
+        updateJobLogStats(data.size, data.job_name, data.log_file);
       } else if (data.type === 'update') {
-        // Replace content with updated content
-        tailYamlElement.textContent = data.content;
-        updateYamlStats(data.size, data.last_modified);
-        updateYamlParsedContent(data.content);
+        // Append new log content
+        tailYamlElement.textContent += data.content;
+        updateJobLogStats(data.size, data.job_name, data.log_file);
+        
+        // Auto-scroll to bottom
+        const yamlContentPre = document.getElementById('yamlContentPre');
+        if (yamlContentPre) {
+          yamlContentPre.scrollTop = yamlContentPre.scrollHeight;
+        }
         
         // Flash effect for changes
         flashYamlContent();
       }
       
     } catch (e) {
-      console.error('Error parsing YAML tail data:', e);
+      console.error('Error parsing job tail data:', e);
       showTailYamlError('Error parsing server response');
     }
   };
@@ -492,21 +497,79 @@ function updateYamlStats(size, lastModified) {
 }
 
 // Update parsed content during YAML tail
-function updateYamlParsedContent(yamlContent) {
+function updateYamlParsedContent(parsedContent) {
   try {
     const parsedContentDiv = document.getElementById('yamlParsedContent');
     if (parsedContentDiv) {
-      parsedContentDiv.innerHTML = `
-        <div class="text-info">
-          <i class="bi bi-info-circle me-2"></i>
-          Content updated at ${new Date().toLocaleTimeString()}
-          <br>
-          <small class="text-muted">Parsed content will be refreshed on next view</small>
-        </div>
-      `;
+      if (parsedContent && typeof parsedContent === 'object' && !parsedContent.error) {
+        parsedContentDiv.innerHTML = formatYamlContent(parsedContent);
+      } else if (parsedContent && parsedContent.error) {
+        parsedContentDiv.innerHTML = `
+          <div class="alert alert-warning" role="alert">
+            <i class="bi bi-exclamation-triangle me-2"></i>
+            ${parsedContent.error}
+          </div>
+        `;
+      } else {
+        parsedContentDiv.innerHTML = `
+          <div class="text-info">
+            <i class="bi bi-info-circle me-2"></i>
+            Content updated at ${new Date().toLocaleTimeString()}
+            <br>
+            <small class="text-muted">No valid YAML content to display</small>
+          </div>
+        `;
+      }
     }
   } catch (e) {
     console.error('Error updating parsed content:', e);
+    const parsedContentDiv = document.getElementById('yamlParsedContent');
+    if (parsedContentDiv) {
+      parsedContentDiv.innerHTML = `
+        <div class="alert alert-danger" role="alert">
+          <i class="bi bi-exclamation-triangle me-2"></i>
+          Error displaying content: ${e.message}
+        </div>
+      `;
+    }
+  }
+}
+
+// Clear YAML content area and prepare for log tail display
+function clearYamlContentForLogTail() {
+  const parsedContentDiv = document.getElementById('yamlParsedContent');
+  if (parsedContentDiv) {
+    parsedContentDiv.innerHTML = `
+      <div class="alert alert-info" role="alert">
+        <i class="bi bi-info-circle me-2"></i>
+        <strong>Job Log Mode:</strong> Displaying live log content from the job's log file.
+        <br>
+        <small class="text-muted">The parsed YAML content is hidden while tailing the job log.</small>
+      </div>
+    `;
+  }
+}
+
+// Update statistics for job log tail
+function updateJobLogStats(size, jobName, logFile) {
+  const fileSizeElement = document.getElementById('yamlFileSize');
+  const lastModifiedElement = document.getElementById('yamlLastModified');
+  const statusElement = document.getElementById('yamlStatus');
+  
+  if (fileSizeElement) {
+    fileSizeElement.textContent = formatFileSize(size);
+  }
+  
+  if (lastModifiedElement) {
+    lastModifiedElement.innerHTML = `
+      <div>Job: <strong>${jobName}</strong></div>
+      <div class="text-muted" style="font-size: 0.8rem;">${logFile}</div>
+    `;
+  }
+  
+  if (statusElement) {
+    statusElement.innerHTML = '<i class="bi bi-circle-fill text-success blink"></i> Live Log Tail';
+    statusElement.className = 'fw-bold text-success';
   }
 }
 
