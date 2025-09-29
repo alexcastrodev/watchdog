@@ -137,93 +137,9 @@
     </div>
 </div>
 
+<script src="/js/job_monitor.js"></script>
 <script>
-let tailInterval = null;
-let lastLogSize = 0;
-
-function toggleAutoTail() {
-    if (tailInterval) {
-        stopTail();
-    } else {
-        startTail();
-    }
-}
-
-function startTail() {
-    const btn = document.getElementById('tailToggleBtn');
-    const status = document.getElementById('monitoringStatus');
-    const jobStatus = document.getElementById('jobStatus');
-    
-    btn.innerHTML = '<i class="bi bi-stop-circle me-1"></i>Stop Monitoring';
-    btn.className = 'btn btn-outline-warning btn-sm me-2';
-    status.innerHTML = '<span class="badge bg-success">Monitoring Active</span>';
-    jobStatus.className = 'badge bg-warning text-dark fs-6';
-    jobStatus.innerHTML = '<i class="bi bi-arrow-clockwise me-1"></i>Tailing';
-    
-    // Reset
-    lastLogSize = 0;
-    
-    // Start polling
-    tailInterval = setInterval(fetchLogContent, 2000);
-    fetchLogContent(); // Initial load
-}
-
-function stopTail() {
-    const btn = document.getElementById('tailToggleBtn');
-    const status = document.getElementById('monitoringStatus');
-    const jobStatus = document.getElementById('jobStatus');
-    
-    if (tailInterval) {
-        clearInterval(tailInterval);
-        tailInterval = null;
-    }
-    
-    btn.innerHTML = '<i class="bi bi-play-circle me-1"></i>Start Monitoring';
-    btn.className = 'btn btn-outline-success btn-sm me-2';
-    status.innerHTML = '<span class="badge bg-secondary">Stopped</span>';
-    jobStatus.className = 'badge bg-success fs-6';
-    jobStatus.textContent = 'Monitoring';
-}
-
-function fetchLogContent() {
-    fetch('/api/job/<%= @filename %>/tail')
-        .then(response => {
-            if (!response.ok) throw new Error(`HTTP ${response.status}`);
-            return response.json();
-        })
-        .then(data => {
-            if (data.error) {
-                throw new Error(data.error);
-            }
-            
-            // Update only if there are changes
-            if (data.size > lastLogSize) {
-                document.getElementById('logCode').textContent = data.content || 'No log content available';
-                scrollToBottom();
-                flashContent();
-                lastLogSize = data.size;
-            }
-        })
-        .catch(error => {
-            console.error('Error fetching log:', error);
-            document.getElementById('logCode').textContent = `Error: ${error.message}`;
-        });
-}
-
-function clearLog() {
-    document.getElementById('logCode').textContent = '';
-}
-
-function scrollToBottom() {
-    const element = document.getElementById('jobLogContent');
-    element.scrollTop = element.scrollHeight;
-}
-
-function flashContent() {
-    const element = document.getElementById('jobLogContent');
-    element.style.backgroundColor = '#d1ecf1';
-    setTimeout(() => {
-        element.style.backgroundColor = '';
-    }, 300);
-}
+    document.addEventListener('DOMContentLoaded', function() {
+        initJobMonitor('<%= @filename %>');
+    });
 </script>
