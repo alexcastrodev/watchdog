@@ -13,13 +13,51 @@ I created this to automate my workflow and avoid manually SSH-ing into my Raspbe
 To start the server, run:
 
 ```sh
-exec -a dc-watchdog ruby server.rb -o 0.0.0.0 -p 9000 &
+sudo vim /etc/systemd/system/watchdog.service
 ```
 
-Then, you can kill it by name:
+Then paste the following:
+
+ATTENTION: Change the paths and user/group to your own!
+
+```ini
+[Unit]
+Description=Watchdog Ruby Server
+After=network.target
+
+[Service]
+Type=simple
+User=user
+Group=user
+
+WorkingDirectory=/home/user/watchdog
+ExecStart=/home/user/.rbenv/shims/ruby ruby /home/user/watchdog/server.rb
+Restart=always
+RestartSec=5
+Environment=PROJECTS_PATH=/home/user/sites
+
+[Install]
+WantedBy=multi-user.target
+```
+
+then run:
 
 ```sh
-pkill dc-watchdog
+sudo systemctl daemon-reload
+sudo systemctl start watchdog.service
+sudo systemctl enable watchdog.service
+```
+
+Logs:
+
+```sh
+journalctl -u watchdog.service -f
+```
+
+Kill
+
+```sh
+sudo systemctl stop watchdog.service
 ```
 
 # Screenshots
