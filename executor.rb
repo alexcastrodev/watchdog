@@ -24,15 +24,18 @@ module Orchestrator
       @job.log = "#{@job.path}.log"
       @job.save
 
+      debug("Start job #{@job.name}")
+
       if Dir.exist?(dir)
-        cmd = "cd #{dir} && git pull && ./build.sh >> #{@job.path}.log"
+        cmd = "cd #{dir} && git pull && ./build.sh"
   
         @pid = spawn_with_callback(cmd, lambda do |pid, success, output|
           @job.status = success ? Job::STATUS[:done] : Job::STATUS[:done_with_error]
           @job.pid = nil
           @job.save
-  
+          
           FileUtils.mv(@file, "#{@job.path}.yml")
+          debug("Finished: #{@file} with #{@job.path}")
         end)
   
         @job.status = Job::STATUS[:running]
@@ -50,16 +53,22 @@ module Orchestrator
     # ===================
     # Helpers
     # ===================
+    def debug(content)
+      File.write("tmp/development.log", "[#{Time.now.strftime("%Y-%m-%d %H:%M:%S")}] #{content}\n", mode: "a")
+    end
+
     def spawn_with_callback(cmd, callback)
       r, w = IO.pipe
 
       pid = Process.spawn(cmd, out: w, err: w)
       w.close
+      debug("Spawn PID: #{pid}")
 
       Thread.new do
         output = r.read
         _, status = Process.wait2(pid)
         success = status.success?
+        debug("Executed process with status: #{status.success? ? "success" : "error"}")
 
         callback.call(pid, success, output) if callback
       ensure
