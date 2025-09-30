@@ -54,6 +54,12 @@ Logs:
 journalctl -u watchdog.service -f
 ```
 
+Restart:
+
+```sh
+sudo systemctl restart watchdog.service
+```
+
 Kill
 
 ```sh
