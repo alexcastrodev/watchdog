@@ -35,15 +35,32 @@ class Job
     end
 
     def kill
-      Process.kill('TERM', pid.to_i) if executing?
-      self.pid = nil
-      self.status = "killed"
-      save
+      begin
+        Process.kill('TERM', pid.to_i) if executing?
+      ensure
+        self.pid = nil
+        self.status = "killed"
+        save
+      end
+
+      FileUtils.mv(flowfile, File.join(File.dirname(__FILE__), 'logs', "#{Time.now.strftime('%Y%m%d%H%M%S')}-#{name}.yml"))
+    end
+
+    def pid?
+      !pid.nil? && !pid.to_s.empty?
     end
 
     def executing?
-      !pid.nil? && !pid.to_s.empty?
+      return false unless pid && pid.to_i > 0
+
+      begin
+        Process.getpgid(pid.to_i)
+        true
+      rescue Errno::ESRCH
+        false
+      end
     end
+
 
     def self.load(data)
       job = new

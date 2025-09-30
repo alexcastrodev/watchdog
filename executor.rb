@@ -9,7 +9,7 @@ module Orchestrator
       @job = Job.load(YAML.load_file(file))
       @file = file
       
-      if @job.executing?
+      if @job.pid?
         @job.kill
         Jobs.new(@file)
       else
