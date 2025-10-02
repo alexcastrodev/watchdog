@@ -67,7 +67,6 @@ module Orchestrator
       end
 
       @job.status = Job::STATUS[:running]
-      @job.pid = pid
       @job.save
     end
   end

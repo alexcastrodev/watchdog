@@ -2,8 +2,9 @@ require 'json'
 require_relative 'job'
 require_relative 'app'
 require 'redis'
+require 'concurrent-ruby'
 
-Thread.new do
+redis_task = Concurrent::Promise.execute do
   redis = Redis.new(host: "127.0.0.1", port: 9001)
 
   redis.subscribe('watchdog') do |on|
@@ -26,26 +27,27 @@ Thread.new do
   end
 end
 
-Thread.new do
-  loop do
-    jobs_dir = File.join(__dir__, 'jobs')
-    if Dir.exist?(jobs_dir)
-      jobs = Dir.entries(jobs_dir).select { |f| f.end_with?('.yml') }
-      puts "Found #{jobs.size} job(s)."
+job_checker = Concurrent::TimerTask.new(execution_interval: 30) do
+  jobs_dir = File.join(__dir__, 'jobs')
+  
+  if Dir.exist?(jobs_dir)
+    jobs = Dir.entries(jobs_dir).select { |f| f.end_with?('.yml') }
+    puts "Found #{jobs.size} job(s)."
 
-      jobs.each do |job_file|
-        loaded_job = YAML.load_file(File.join(jobs_dir, job_file))
-        job = Job.load(loaded_job)
-        # This will kill jobs that are not executing but have a PID
-        # Maybe caused by a crash or unexpected shutdown
-        puts "Checking job: #{job.name}, PID: #{job.pid}, executing: #{job.executing?}"
-        job.kill if !job.executing?
-      end
-    else
-      puts "No jobs directory found."
+    jobs.each do |job_file|
+      loaded_job = YAML.load_file(File.join(jobs_dir, job_file))
+      job = Job.load(loaded_job)
+      # This will kill jobs that are not executing but have a PID
+      # Maybe caused by a crash or unexpected shutdown
+      puts "Checking job: #{job.name}, PID: #{job.pid}, executing: #{job.executing?}"
+      job.kill if !job.executing?
     end
-    sleep 30
+  else
+    puts "No jobs directory found."
   end
 end
+
+# Job
+job_checker.execute
 
 App.run!
